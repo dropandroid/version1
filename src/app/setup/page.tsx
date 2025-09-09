@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -62,7 +63,7 @@ export default function SetupPage() {
         setSetupStatus('success');
         toast({
           title: 'Setup Successful!',
-          description: 'Device is restarting. Connect your phone back to your home Wi-Fi.',
+          description: 'Device is restarting. Connect your phone back to your home Wi-Fi and return to the app.',
         });
       } else {
         throw new Error(result.message || 'An unknown error occurred.');
@@ -87,11 +88,6 @@ export default function SetupPage() {
 
   return (
     <div className="max-w-md mx-auto bg-background min-h-screen font-body p-4">
-        <Link href="/" passHref>
-            <Button variant="ghost" className="mb-4">
-                &larr; Back to App
-            </Button>
-        </Link>
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Device First-Time Setup</CardTitle>
@@ -113,7 +109,7 @@ export default function SetupPage() {
                 <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
                 <h3 className="text-lg font-bold text-green-700">Setup Complete!</h3>
                 <p className="text-sm text-green-600/80 mt-2">
-                    Your device is restarting and will connect to your Wi-Fi. You can now close this page and connect your phone back to your regular Wi-Fi network.
+                    Your device is restarting. Please connect your phone back to your regular Wi-Fi network to use the app.
                 </p>
                 <Link href="/" passHref>
                     <Button className="mt-4">Go to Dashboard</Button>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -12,6 +13,8 @@ import { ProfileTab } from '@/components/tabs/profile-tab';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { WifiOff } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 const AppSkeleton: FC = () => (
   <div className="p-4 space-y-4">
@@ -22,17 +25,45 @@ const AppSkeleton: FC = () => (
       <Skeleton className="h-24 w-full" />
     </div>
     <Skeleton className="h-40 w-full" />
-    <Skeleton className="h-32 w-full" />
   </div>
 );
+
+const DisconnectedState: FC = () => (
+    <div className="p-4 mt-8">
+        <Card className="text-center">
+            <CardHeader>
+                <WifiOff className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                <CardTitle>No Device Connected</CardTitle>
+                <CardDescription>
+                    It looks like you haven't set up your AquaTrack device yet.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="mb-4 text-sm text-muted-foreground">
+                    Please go to the setup page to connect your device to your Wi-Fi network.
+                </p>
+                <Link href="/setup" passHref>
+                    <Button>Go to Device Setup</Button>
+                </Link>
+            </CardContent>
+        </Card>
+    </div>
+);
+
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('home');
   const roData = useRoData();
 
+  // A simple way to check if data has been loaded or is still in its initial "disconnected" state.
+  const isConnected = roData.roDevice.serialNumber !== '';
+
   const renderTab = () => {
     if (roData.isInitialLoading) {
       return <AppSkeleton />;
+    }
+    if (!isConnected) {
+        return <DisconnectedState />;
     }
     switch (activeTab) {
       case 'home':
@@ -54,14 +85,7 @@ export default function Home() {
       <main className="pb-24">
         {renderTab()}
       </main>
-      <div className="p-4">
-        <Link href="/setup" passHref>
-            <Button variant="outline" className="w-full">
-                Go to Device Setup
-            </Button>
-        </Link>
-      </div>
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      {isConnected && <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />}
     </div>
   );
 }
