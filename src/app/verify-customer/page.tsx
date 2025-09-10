@@ -35,37 +35,53 @@ export default function VerifyCustomerPage() {
     },
   });
 
-  // This is where you would call your backend to verify the customer.
   const onSubmit = async (values: VerificationFormValues) => {
     setIsLoading(true);
-    console.log("Verifying with backend:", {
-        google_email: user?.email,
-        customerId: values.customerId,
-        pin: values.pin
-    });
+    
+    // This is the URL from your ESP8266 code. 
+    // We will call this to verify the customer.
+    const verifyUrl = 'https://fwtq5pp3tbhmasdvxphfzeyzuq0ukowc.lambda-url.eu-north-1.on.aws/';
+    
+    try {
+      const response = await fetch(verifyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          google_email: user?.email,
+          customerId: values.customerId,
+          pin: values.pin,
+        }),
+      });
 
-    // --- Backend Verification Simulation ---
-    // In a real app, you would replace this with a `fetch` call to your backend.
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Example of successful verification
-    if (values.customerId === 'JH09d01301' && values.pin === '1234') {
+      if (response.ok) {
+        // Assuming a 200 OK response means successful verification
         toast({
-            title: 'Verification Successful!',
-            description: 'Welcome to your AquaTrack dashboard.',
+          title: 'Verification Successful!',
+          description: 'Welcome to your AquaTrack dashboard.',
         });
         setCustomerStatus('verified');
         router.push('/');
-    } else {
-        // Example of failed verification
+      } else {
+        // Handle non-200 responses (e.g., 401, 404) as failed verification
+        const errorData = await response.json().catch(() => null);
         toast({
-            variant: 'destructive',
-            title: 'Verification Failed',
-            description: 'Invalid Customer ID or PIN. Please try again.',
+          variant: 'destructive',
+          title: 'Verification Failed',
+          description: errorData?.message || 'Invalid Customer ID or PIN. Please try again.',
         });
         setIsLoading(false);
+      }
+    } catch (error) {
+      console.error("Verification request failed:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not connect to the server. Please try again later.',
+      });
+      setIsLoading(false);
     }
-    // --- End of Simulation ---
   };
 
   if(loading || !user) {
