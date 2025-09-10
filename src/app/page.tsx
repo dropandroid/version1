@@ -15,6 +15,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { WifiOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useAuth } from '@/hooks/use-auth';
+import { Loader2 } from 'lucide-react';
 
 const AppSkeleton: FC = () => (
   <div className="p-4 space-y-4">
@@ -54,6 +56,15 @@ const DisconnectedState: FC = () => (
 export default function Home() {
   const [activeTab, setActiveTab] = useState('home');
   const roData = useRoData();
+  const { user, loading } = useAuth();
+
+  if (loading || !user) {
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+    )
+  }
 
   // A simple way to check if data has been loaded or is still in its initial "disconnected" state.
   const isConnected = roData.roDevice.serialNumber !== '';

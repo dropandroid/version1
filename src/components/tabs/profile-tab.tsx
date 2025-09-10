@@ -1,12 +1,15 @@
+
 "use client";
 
 import type { FC } from 'react';
-import { User } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { useRoData } from '@/hooks/use-ro-data';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getDaysElapsed } from '@/lib/helpers';
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/hooks/use-auth';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +26,7 @@ type ProfileTabProps = ReturnType<typeof useRoData>;
 
 export const ProfileTab: FC<ProfileTabProps> = ({ roDevice, setRoDevice }) => {
   const { toast } = useToast();
+  const { user, signOut } = useAuth();
   const daysElapsed = getDaysElapsed(roDevice.startDate);
   const dailyAverage = daysElapsed > 0 ? roDevice.totalLiters / daysElapsed : 0;
 
@@ -45,22 +49,21 @@ export const ProfileTab: FC<ProfileTabProps> = ({ roDevice, setRoDevice }) => {
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">My Profile</CardTitle>
+          <CardDescription>Manage your account and device settings.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center mb-6">
-            <div className="bg-primary rounded-full w-16 h-16 flex items-center justify-center">
-              <User className="w-8 h-8 text-primary-foreground" />
-            </div>
+            <Avatar className="w-16 h-16">
+              <AvatarImage src={user?.photoURL ?? undefined} alt={user?.displayName ?? "User"} />
+              <AvatarFallback>{user?.displayName?.[0]}</AvatarFallback>
+            </Avatar>
             <div className="ml-4">
-              <h3 className="font-semibold text-lg text-foreground">John Doe</h3>
+              <h3 className="font-semibold text-lg text-foreground">{user?.displayName}</h3>
               <p className="text-sm text-muted-foreground">Customer ID: DP-2024-001</p>
-              <p className="text-sm text-green-600 font-medium">Premium Member</p>
             </div>
           </div>
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Email</span><span className="font-medium">john.doe@email.com</span></div>
-            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Phone</span><span className="font-medium">+91 9876543210</span></div>
-            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Address</span><span className="font-medium text-right">123 Main St, City, State 12345</span></div>
+            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Email</span><span className="font-medium">{user?.email}</span></div>
             <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Member Since</span><span className="font-medium">{new Date(roDevice.startDate).toLocaleDateString()}</span></div>
           </div>
         </CardContent>
@@ -81,7 +84,6 @@ export const ProfileTab: FC<ProfileTabProps> = ({ roDevice, setRoDevice }) => {
       </Card>
 
       <div className="space-y-3">
-        <Button className="w-full" onClick={() => toast({ description: "Profile editing coming soon!" })}>Edit Profile</Button>
         <Button variant="outline" className="w-full" onClick={handleExtendRental}>Extend Rental</Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -100,6 +102,9 @@ export const ProfileTab: FC<ProfileTabProps> = ({ roDevice, setRoDevice }) => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        <Button variant="ghost" className="w-full" onClick={signOut}>
+          <LogOut className="mr-2 h-4 w-4" /> Sign Out
+        </Button>
       </div>
     </div>
   );
