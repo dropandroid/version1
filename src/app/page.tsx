@@ -56,9 +56,9 @@ const DisconnectedState: FC = () => (
 export default function Home() {
   const [activeTab, setActiveTab] = useState('home');
   const roData = useRoData();
-  const { user, loading } = useAuth();
+  const { user, loading, customerStatus } = useAuth();
 
-  if (loading || !user) {
+  if (loading || !user || customerStatus !== 'verified') {
     return (
         <div className="flex items-center justify-center min-h-screen">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />

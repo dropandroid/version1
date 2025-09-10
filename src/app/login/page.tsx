@@ -17,7 +17,7 @@ const GoogleIcon = () => (
 
 
 export default function LoginPage() {
-    const { signInWithGoogle, loading } = useAuth();
+    const { signInWithGoogle, loading, user } = useAuth();
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
@@ -25,7 +25,7 @@ export default function LoginPage() {
                 <h1 className="text-4xl font-bold text-primary mb-2">Droppurity</h1>
                 <p className="text-muted-foreground mb-8">Monitor your water, effortlessly.</p>
 
-                {loading ? (
+                {(loading || user) ? (
                      <Button disabled size="lg" className="w-full">
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Please wait
