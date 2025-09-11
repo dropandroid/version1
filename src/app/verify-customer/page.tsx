@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Fingerprint, KeyRound, Mail } from 'lucide-react';
+import { Loader2, Fingerprint, KeyRound, Mail, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { verifyCustomerPin, getCustomerByEmail } from '@/lib/dynamodb';
@@ -22,12 +22,18 @@ const formSchema = z.object({
 
 type VerificationFormValues = z.infer<typeof formSchema>;
 
+const MAX_ATTEMPTS = 5;
+const INITIAL_DELAY_MS = 2000;
+
 export default function VerifyCustomerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(true);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [delay, setDelay] = useState(0);
   const { user, loading, setCustomerStatus, setCustomerData } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const countdownInterval = useRef<NodeJS.Timeout | null>(null);
 
   const form = useForm<VerificationFormValues>({
     resolver: zodResolver(formSchema),
@@ -59,6 +65,40 @@ export default function VerifyCustomerPage() {
     }
   }, [user, form, toast]);
 
+  useEffect(() => {
+    if (delay > 0) {
+      countdownInterval.current = setInterval(() => {
+        setDelay(prev => prev - 1);
+      }, 1000);
+    } else if (countdownInterval.current) {
+      clearInterval(countdownInterval.current);
+    }
+    return () => {
+      if (countdownInterval.current) clearInterval(countdownInterval.current);
+    };
+  }, [delay]);
+
+  const handleFailedAttempt = () => {
+    const newAttemptCount = failedAttempts + 1;
+    setFailedAttempts(newAttemptCount);
+    
+    if (newAttemptCount < MAX_ATTEMPTS) {
+      const newDelay = Math.pow(2, newAttemptCount - 1) * (INITIAL_DELAY_MS / 1000);
+      setDelay(Math.round(newDelay));
+      toast({
+        variant: 'destructive',
+        title: 'Verification Failed',
+        description: `Incorrect Customer ID or PIN. Please wait ${Math.round(newDelay)} seconds.`,
+      });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Too Many Failed Attempts',
+        description: 'Please contact support for assistance.',
+      });
+    }
+    setIsLoading(false);
+  };
 
   const onSubmit = async (values: VerificationFormValues) => {
     setIsLoading(true);
@@ -83,14 +123,10 @@ export default function VerifyCustomerPage() {
         });
         setCustomerData(customerData);
         setCustomerStatus('verified');
+        setFailedAttempts(0);
         router.push('/');
       } else {
-        toast({
-          variant: 'destructive',
-          title: 'Verification Failed',
-          description: 'Invalid Customer ID or PIN. Please try again.',
-        });
-        setIsLoading(false);
+        handleFailedAttempt();
       }
     } catch (error) {
       console.error("Verification request failed:", error);
@@ -104,12 +140,22 @@ export default function VerifyCustomerPage() {
     }
   };
 
+  const isLocked = failedAttempts >= MAX_ATTEMPTS;
+  const isButtonDisabled = isLoading || isSuggesting || isLocked || delay > 0;
+
   if(loading || !user) {
     return (
         <div className="flex items-center justify-center min-h-screen">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
     )
+  }
+
+  const renderButtonContent = () => {
+      if (isLoading) return <> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying... </>;
+      if (delay > 0) return `Try again in ${delay}s`;
+      if (isLocked) return "Account Locked";
+      return "Verify & Continue";
   }
 
   return (
@@ -120,6 +166,14 @@ export default function VerifyCustomerPage() {
           <CardDescription>Enter your Customer ID and PIN to link your account.</CardDescription>
         </CardHeader>
         <CardContent>
+           {isLocked && (
+            <div className="mb-4 flex items-center p-3 bg-destructive/10 text-destructive rounded-lg">
+              <ShieldAlert className="h-5 w-5 mr-3 shrink-0"/>
+              <p className="text-sm font-medium">
+                Too many incorrect attempts. For your security, access has been temporarily locked. Please contact support.
+              </p>
+            </div>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
@@ -133,7 +187,7 @@ export default function VerifyCustomerPage() {
                         {isSuggesting && <Loader2 className="ml-2 h-3 w-3 animate-spin" />}
                     </FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., JH09d01301" {...field} />
+                      <Input placeholder="e.g., JH09d01301" {...field} disabled={isLocked} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -146,21 +200,14 @@ export default function VerifyCustomerPage() {
                   <FormItem>
                     <FormLabel className="flex items-center"><KeyRound className="mr-2 h-4 w-4" /> PIN</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Last 4 digits of your mobile" maxLength={4} {...field} />
+                      <Input type="password" placeholder="Last 4 digits of your mobile" maxLength={4} {...field} disabled={isLocked} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading || isSuggesting}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  "Verify & Continue"
-                )}
+              <Button type="submit" className="w-full" disabled={isButtonDisabled}>
+                {renderButtonContent()}
               </Button>
             </form>
           </Form>
