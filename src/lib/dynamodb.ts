@@ -14,9 +14,9 @@ const docClient = DynamoDBDocumentClient.from(client);
 export const verifyCustomerPin = async (customerId: string, pin: string, googleEmail: string): Promise<boolean> => {
   try {
     const command = new GetCommand({
-      TableName: "customers", // Assuming your table is named 'customers'
+      TableName: "droppurity-customers", // Corrected table name
       Key: {
-        customerId: customerId,
+        generatedCustomerId: customerId, // Corrected key name
       },
     });
 
@@ -27,8 +27,8 @@ export const verifyCustomerPin = async (customerId: string, pin: string, googleE
       return false; // Customer ID does not exist
     }
 
-    // Assuming PIN is stored as the last 4 digits of a 'mobile' attribute
-    const storedMobile = Item.mobile as string;
+    // Assuming PIN is stored as the last 4 digits of a 'customerPhone' attribute
+    const storedMobile = Item.customerPhone as string; // Corrected attribute name
     if (!storedMobile || storedMobile.length < 4) {
         console.log("Mobile number not found or too short for customer");
         return false;
@@ -38,9 +38,9 @@ export const verifyCustomerPin = async (customerId: string, pin: string, googleE
     if (pin === expectedPin) {
       // PIN is correct, now link the Google email
       const updateCommand = new UpdateCommand({
-        TableName: "customers",
+        TableName: "droppurity-customers", // Corrected table name
         Key: {
-          customerId: customerId,
+          generatedCustomerId: customerId, // Corrected key name
         },
         UpdateExpression: "set google_email = :email",
         ExpressionAttributeValues: {
