@@ -131,12 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.push('/verify-customer');
         return 'success';
       } else {
-        // Don't sign out immediately, let the login page handle it
         return 'unregistered';
       }
     } catch (error) {
       console.error("Error during sign-in process:", error);
-      await firebaseSignOut(auth);
       toast({
           variant: "destructive",
           title: "Sign-In Error",
