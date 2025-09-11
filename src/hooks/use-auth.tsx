@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (cachedData) {
             const parsedData: CustomerData = JSON.parse(cachedData);
             // Ensure cached data belongs to the current user
-            if (parsedData.google_email === user.email) {
+            if (parsedData.emailId === user.email || parsedData.google_email === user.email) {
               setCustomerDataState(parsedData);
               setCustomerStatus('verified');
             } else {

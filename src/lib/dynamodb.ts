@@ -17,7 +17,7 @@ export const getCustomerByEmail = async (email: string): Promise<CustomerData | 
   try {
     const command = new ScanCommand({
       TableName: TABLE_NAME,
-      FilterExpression: "google_email = :email",
+      FilterExpression: "emailId = :email",
       ExpressionAttributeValues: {
         ":email": email,
       },
