@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -17,18 +18,18 @@ interface NotificationsProps {
 const alertConfig = {
   error: {
     icon: XCircle,
-    className: "bg-red-500/10 border-red-500/50 text-red-700 dark:text-red-300",
-    buttonClass: "bg-red-600 hover:bg-red-700",
+    className: "bg-red-50 border-red-400 text-red-800",
+    buttonClass: "bg-red-600 hover:bg-red-700 text-white",
   },
   warning: {
     icon: TriangleAlert,
-    className: "bg-amber-500/10 border-amber-500/50 text-amber-700 dark:text-amber-300",
-    buttonClass: "bg-amber-600 hover:bg-amber-700",
+    className: "bg-orange-50 border-orange-400 text-orange-800",
+    buttonClass: "bg-orange-600 hover:bg-orange-700 text-white",
   },
   info: {
     icon: Info,
-    className: "bg-blue-500/10 border-blue-500/50 text-blue-700 dark:text-blue-300",
-    buttonClass: "bg-blue-600 hover:bg-blue-700",
+    className: "bg-blue-50 border-blue-400 text-blue-800",
+    buttonClass: "bg-blue-600 hover:bg-blue-700 text-white",
   },
 };
 
@@ -54,25 +55,7 @@ export function Notifications({ notifications }: NotificationsProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-base">Alerts & Notifications</CardTitle>
-          {notifications.length > 1 && (
-            <Button size="sm" onClick={handleSummarize} disabled={isLoading}>
-              <Sparkles className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
-              {isLoading ? 'Summarizing...' : 'AI Summary'}
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {isLoading && (
-            <div className="space-y-2">
-                <Skeleton className="h-4 w-1/3" />
-                <Skeleton className="h-4 w-full" />
-            </div>
-        )}
+    <div className="space-y-2">
         {summary && (
           <div className="mt-2 p-3 bg-primary/10 rounded-lg">
             <h4 className="font-semibold text-primary flex items-center mb-1">
@@ -94,14 +77,19 @@ export function Notifications({ notifications }: NotificationsProps) {
                   <Icon className="w-5 h-5 mr-3 shrink-0" />
                   <span className="text-sm font-medium">{notification.message}</span>
                 </div>
-                <Button size="sm" className={cn("text-white text-xs h-7", config.buttonClass)}>
+                <Button size="sm" className={cn("text-xs h-7", config.buttonClass)}>
                   {notification.action}
                 </Button>
               </div>
             </div>
           );
         })}
-      </CardContent>
-    </Card>
+        {notifications.length > 1 && (
+            <Button size="sm" onClick={handleSummarize} disabled={isLoading} className="w-full">
+              <Sparkles className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
+              {isLoading ? 'Summarizing...' : 'Summarize Alerts with AI'}
+            </Button>
+          )}
+    </div>
   );
 }

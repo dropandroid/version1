@@ -2,7 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
-import { LogOut } from 'lucide-react';
+import { LogOut, User as UserIcon } from 'lucide-react';
 import { useRoData } from '@/hooks/use-ro-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ type ProfileTabProps = ReturnType<typeof useRoData>;
 
 export const ProfileTab: FC<ProfileTabProps> = ({ roDevice, setRoDevice }) => {
   const { toast } = useToast();
-  const { user, signOut } = useAuth();
+  const { user, signOut, customerData } = useAuth();
   const daysElapsed = getDaysElapsed(roDevice.startDate);
   const dailyAverage = daysElapsed > 0 ? roDevice.totalLiters / daysElapsed : 0;
 
@@ -43,28 +43,38 @@ export const ProfileTab: FC<ProfileTabProps> = ({ roDevice, setRoDevice }) => {
   const handleEndRental = () => {
     toast({ title: "Request Submitted", description: "Rental termination request submitted. We will contact you soon." });
   };
+  
+  const handleEditProfile = () => {
+      toast({ title: "Coming Soon!", description: "Profile editing feature will be available soon."})
+  }
 
   return (
     <div className="p-4 space-y-4">
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">My Profile</CardTitle>
-          <CardDescription>Manage your account and device settings.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center mb-6">
-            <Avatar className="w-16 h-16">
+            <Avatar className="w-16 h-16 bg-blue-500 text-white flex items-center justify-center">
               <AvatarImage src={user?.photoURL ?? undefined} alt={user?.displayName ?? "User"} />
-              <AvatarFallback>{user?.displayName?.[0]}</AvatarFallback>
+              <AvatarFallback>
+                <UserIcon className="w-8 h-8" />
+              </AvatarFallback>
             </Avatar>
             <div className="ml-4">
-              <h3 className="font-semibold text-lg text-foreground">{user?.displayName}</h3>
-              <p className="text-sm text-muted-foreground">Customer ID: DP-2024-001</p>
+              <h3 className="font-semibold text-lg text-foreground">{customerData?.customerName || user?.displayName}</h3>
+              <p className="text-sm text-muted-foreground">Customer ID: {customerData?.generatedCustomerId}</p>
+              <p className="text-sm text-green-600">Premium Member</p>
             </div>
           </div>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Email</span><span className="font-medium">{user?.email}</span></div>
-            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Member Since</span><span className="font-medium">{new Date(roDevice.startDate).toLocaleDateString()}</span></div>
+            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Phone</span><span className="font-medium">{customerData?.customerPhone}</span></div>
+            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Address</span><span className="font-medium">{customerData?.customerAddress}</span></div>
+            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Plan</span><span className="font-medium text-green-600">Premium Annual</span></div>
+            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Rental Period</span><span className="font-medium">12 Months</span></div>
+            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Member Since</span><span className="font-medium">{customerData ? new Date(roDevice.startDate).toLocaleDateString() : '-'}</span></div>
           </div>
         </CardContent>
       </Card>
@@ -72,22 +82,23 @@ export const ProfileTab: FC<ProfileTabProps> = ({ roDevice, setRoDevice }) => {
       <Card>
         <CardHeader><CardTitle className="text-base">Account Statistics</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-2 gap-4">
-          <div className="text-center p-3 bg-primary/10 rounded-lg">
-            <p className="text-2xl font-bold text-primary">{Math.round(roDevice.totalLiters)}</p>
-            <p className="text-xs text-primary/80">Total Liters</p>
+          <div className="text-center p-3 bg-blue-50 rounded-lg">
+            <p className="text-2xl font-bold text-blue-600">{Math.round(roDevice.totalLiters)}</p>
+            <p className="text-xs text-blue-700">Total Liters</p>
           </div>
-          <div className="text-center p-3 bg-green-500/10 rounded-lg">
-            <p className="text-2xl font-bold text-green-700">{dailyAverage.toFixed(1)}</p>
-            <p className="text-xs text-green-600/80">Daily Average (L)</p>
+          <div className="text-center p-3 bg-green-50 rounded-lg">
+            <p className="text-2xl font-bold text-green-600">{dailyAverage.toFixed(1)}</p>
+            <p className="text-xs text-green-700">Daily Average (L)</p>
           </div>
         </CardContent>
       </Card>
 
       <div className="space-y-3">
-        <Button variant="outline" className="w-full" onClick={handleExtendRental}>Extend Rental</Button>
+        <Button className="w-full bg-blue-500 hover:bg-blue-600" onClick={handleEditProfile}>Edit Profile</Button>
+        <Button variant="outline" className="w-full border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700" onClick={handleExtendRental}>Extend Rental</Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="destructive" className="w-full">End Rental</Button>
+            <Button variant="destructive" className="w-full border border-red-300 bg-transparent text-red-600 hover:bg-red-50">End Rental</Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>

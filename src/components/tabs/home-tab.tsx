@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -37,15 +38,33 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
     return 'text-red-600';
   };
   
-  const getProgressVariant = (value: number, thresholds: [number, number]): "default" | "yellow" | "red" => {
-    if (value > thresholds[1]) return "default";
-    if (value > thresholds[0]) return "yellow";
-    return "red";
+  const getProgressVariant = (value: number): "default" | "yellow" | "red" => {
+    if (value > 90) return "red";
+    if (value > 70) return "yellow";
+    return "default";
   }
+
+  const getQualityProgressColor = (value: number) => {
+     if (value >= 98) return 'bg-green-500';
+     if (value >= 95) return 'bg-yellow-500';
+     return 'bg-red-500';
+  }
+  
+  const getTdsProgressColor = (value: number) => {
+      if (value <= 50) return 'bg-green-500';
+      return 'bg-orange-500';
+  }
+
+  const getFilterLifeProgressColor = (value: number) => {
+      if (value > 50) return 'bg-green-500';
+      if (value > 20) return 'bg-yellow-500';
+      return 'bg-red-500';
+  }
+
 
   return (
     <div className="p-4 space-y-4">
-      <Card className="bg-gradient-to-r from-primary to-teal-600 text-primary-foreground">
+      <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-primary-foreground">
         <CardContent className="p-4">
           <div className="flex justify-between items-start">
             <div>
@@ -57,7 +76,9 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
               <p className="text-lg font-bold">{roDevice.totalLiters.toFixed(1)}L</p>
             </div>
           </div>
-          <div className={`inline-flex items-center mt-2 px-2 py-1 rounded-full text-xs bg-white/20`}>
+          <div className={`inline-flex items-center mt-2 px-2 py-1 rounded-full text-xs ${
+            roDevice.status === 'active' ? 'bg-green-500/20 text-green-100' : 'bg-red-500/20 text-red-100'
+          }`}>
             <CheckCircle className="w-3 h-3 mr-1" />
             {roDevice.status === 'active' ? 'ACTIVE' : 'INACTIVE'}
           </div>
@@ -107,7 +128,15 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
             <span className="text-muted-foreground">Usage</span>
             <span>{roDevice.todayUsage.toFixed(1)}L / {roDevice.dailyLimit}L ({Math.round(usagePercentage)}%)</span>
           </div>
-          <Progress value={usagePercentage} />
+          <div className="w-full bg-muted rounded-full h-3">
+              <div 
+                className={`h-3 rounded-full transition-all duration-500 ${
+                  usagePercentage > 90 ? 'bg-red-500' : 
+                  usagePercentage > 70 ? 'bg-yellow-500' : 'bg-green-500'
+                }`}
+                style={{ width: `${Math.min(usagePercentage, 100)}%` }}
+              ></div>
+            </div>
           <p className="text-xs text-muted-foreground mt-2">
             {usagePercentage > 90 ? 'High usage today - consider reducing consumption' : 
              usagePercentage > 70 ? 'Moderate usage - within normal range' : 'Normal usage - well within limits'}
@@ -120,18 +149,33 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
         <CardContent className="grid grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-sm text-muted-foreground">Purity</p>
-              <p className={`text-lg font-bold ${getQualityColor(roDevice.purityLevel, [97, 98])}`}>{roDevice.purityLevel}%</p>
-              <Progress value={roDevice.purityLevel} />
+              <p className={`text-lg font-bold ${getQualityColor(roDevice.purityLevel, [95, 98])}`}>{roDevice.purityLevel}%</p>
+               <div className="w-full bg-muted rounded-full h-2 mt-1">
+                <div 
+                  className={`h-2 rounded-full ${getQualityProgressColor(roDevice.purityLevel)}`}
+                  style={{ width: `${roDevice.purityLevel}%` }}
+                ></div>
+              </div>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">TDS Level</p>
-              <p className={`text-lg font-bold ${getQualityColor(roDevice.tdsLevel, [50, 40], true)}`}>{roDevice.tdsLevel} ppm</p>
-              <Progress value={100 - roDevice.tdsLevel} />
+              <p className={`text-lg font-bold ${getQualityColor(roDevice.tdsLevel, [50, 60], true)}`}>{roDevice.tdsLevel} ppm</p>
+              <div className="w-full bg-muted rounded-full h-2 mt-1">
+                <div 
+                  className={`h-2 rounded-full ${getTdsProgressColor(roDevice.tdsLevel)}`}
+                  style={{ width: `${Math.min((roDevice.tdsLevel / 100) * 100, 100)}%` }}
+                ></div>
+              </div>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Filter Life</p>
               <p className={`text-lg font-bold ${getQualityColor(roDevice.filterLifeRemaining, [20, 50])}`}>{Math.round(roDevice.filterLifeRemaining)}%</p>
-              <Progress value={roDevice.filterLifeRemaining} />
+              <div className="w-full bg-muted rounded-full h-2 mt-1">
+                <div 
+                  className={`h-2 rounded-full ${getFilterLifeProgressColor(roDevice.filterLifeRemaining)}`}
+                  style={{ width: `${roDevice.filterLifeRemaining}%` }}
+                ></div>
+              </div>
             </div>
         </CardContent>
       </Card>
@@ -142,6 +186,7 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
           <div className="flex justify-between"><span className="text-muted-foreground">Start Date:</span><span className="font-medium">{new Date(roDevice.startDate).toLocaleDateString()}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">End Date:</span><span className="font-medium">{new Date(roDevice.endDate).toLocaleDateString()}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Days Completed:</span><span className="font-medium">{daysElapsed} days</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Monthly Usage:</span><span className="font-medium">{roDevice.monthlyUsage}L</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Last Usage:</span><span className="font-medium">{new Date(roDevice.lastUsageTime).toLocaleString()}</span></div>
         </CardContent>
       </Card>

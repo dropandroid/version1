@@ -72,12 +72,21 @@ export default function Home() {
   const roData = useRoData();
   const { user, loading, customerStatus, customerData } = useAuth();
 
-  if (loading || !user || customerStatus !== 'verified' || !customerData) {
+  if (loading || !user) {
     return (
         <div className="flex items-center justify-center min-h-screen">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
     )
+  }
+  
+  if (customerStatus !== 'verified' || !customerData) {
+      // This state is handled by the useAuth hook redirecting to /verify-customer
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+    );
   }
 
   const isConnected = roData.roDevice.serialNumber !== '';
@@ -86,7 +95,7 @@ export default function Home() {
     if (roData.isInitialLoading && isConnected) {
       return <AppSkeleton />;
     }
-    if (!isConnected) {
+    if (!isConnected && activeTab !== 'profile' && activeTab !== 'settings') {
         return <DisconnectedState />;
     }
     switch (activeTab) {
@@ -109,7 +118,7 @@ export default function Home() {
       <main className="pb-24">
         {renderTab()}
       </main>
-      {isConnected && <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />}
+      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );
 }

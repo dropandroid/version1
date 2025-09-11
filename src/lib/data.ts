@@ -1,8 +1,8 @@
 
 import type { RODevice, UsageData, AppSettings } from './types';
 
-// Data is now initialized to an empty/disconnected state.
-// The app will fetch real data from the device after setup.
+// This file is not actively used when the useRoData hook contains the initial data.
+// It serves as a reference for the data structure.
 
 export const INITIAL_RO_DEVICE: RODevice = {
   deviceName: "Not Connected",

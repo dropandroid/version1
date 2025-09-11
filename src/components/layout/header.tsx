@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Bell } from 'lucide-react';
@@ -11,7 +12,7 @@ export const Header: FC<HeaderProps> = ({ notificationCount }) => {
   return (
     <header className="sticky top-0 z-10 bg-card shadow-sm p-4 flex justify-between items-center">
       <div>
-        <h1 className="text-lg font-bold text-foreground">AquaTrack</h1>
+        <h1 className="text-lg font-bold text-foreground">Drop Purity</h1>
         <p className="text-xs text-muted-foreground">RO Monitor v2.1</p>
       </div>
       <div className="relative">

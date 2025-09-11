@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -24,7 +25,7 @@ export const WaterUsageSimulator: FC<WaterUsageSimulatorProps> = ({ addWaterUsag
             <Button
               key={amount}
               onClick={() => addWaterUsage(amount)}
-              variant="outline"
+              className="bg-blue-500 hover:bg-blue-600"
             >
               +{amount}L
             </Button>
@@ -39,6 +40,7 @@ export const WaterUsageSimulator: FC<WaterUsageSimulatorProps> = ({ addWaterUsag
             disabled={isLoading}
             variant="ghost"
             size="sm"
+            className="text-blue-600 hover:text-blue-800"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
