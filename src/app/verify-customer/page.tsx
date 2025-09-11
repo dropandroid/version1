@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Fingerprint, KeyRound } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
+import { verifyCustomerPin } from '@/lib/dynamodb';
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer ID is required"),
@@ -38,25 +39,20 @@ export default function VerifyCustomerPage() {
   const onSubmit = async (values: VerificationFormValues) => {
     setIsLoading(true);
     
-    // This is the URL from your ESP8266 code. 
-    // We will call this to verify the customer.
-    const verifyUrl = 'https://fwtq5pp3tbhmasdvxphfzeyzuq0ukowc.lambda-url.eu-north-1.on.aws/';
+    if (!user?.email) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "No user email found. Please sign in again.",
+        });
+        setIsLoading(false);
+        return;
+    }
     
     try {
-      const response = await fetch(verifyUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          google_email: user?.email,
-          customerId: values.customerId,
-          pin: values.pin,
-        }),
-      });
+      const isVerified = await verifyCustomerPin(values.customerId, values.pin, user.email);
 
-      if (response.ok) {
-        // Assuming a 200 OK response means successful verification
+      if (isVerified) {
         toast({
           title: 'Verification Successful!',
           description: 'Welcome to your AquaTrack dashboard.',
@@ -64,12 +60,10 @@ export default function VerifyCustomerPage() {
         setCustomerStatus('verified');
         router.push('/');
       } else {
-        // Handle non-200 responses (e.g., 401, 404) as failed verification
-        const errorData = await response.json().catch(() => null);
         toast({
           variant: 'destructive',
           title: 'Verification Failed',
-          description: errorData?.message || 'Invalid Customer ID or PIN. Please try again.',
+          description: 'Invalid Customer ID or PIN. Please try again.',
         });
         setIsLoading(false);
       }
