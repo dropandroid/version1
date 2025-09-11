@@ -2,26 +2,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import type { RODevice, UsageData, AppSettings, Alert } from '@/lib/types';
+import type { RODevice, UsageData, AppSettings, Alert, CustomerData } from '@/lib/types';
 import { calculateDaysRemaining } from '@/lib/helpers';
-
-const INITIAL_RO_DEVICE: RODevice = {
-  deviceName: "My RO Water Purifier",
-  serialNumber: "DP-RO-2024-001",
-  startDate: "2024-01-15",
-  endDate: "2024-12-15",
-  todayUsage: 0,
-  monthlyUsage: 485.2,
-  dailyLimit: 50,
-  status: "active",
-  purityLevel: 98.2,
-  tdsLevel: 45,
-  lastServiceDate: "2024-07-15",
-  nextServiceDate: "2024-10-15",
-  totalLiters: 2847.5,
-  filterLifeRemaining: 85,
-  lastUsageTime: new Date().toISOString()
-};
+import { useAuth } from './use-auth';
 
 const INITIAL_USAGE_HISTORY: UsageData[] = [
   { day: 'Mon', usage: 32.5, date: '2024-09-02' },
@@ -41,15 +24,61 @@ const INITIAL_SETTINGS: AppSettings = {
   autoRefresh: true
 };
 
+const createInitialDeviceState = (customerData: CustomerData | null): RODevice => {
+    if (!customerData) {
+        return {
+            deviceName: "Not Connected",
+            serialNumber: "",
+            startDate: "",
+            endDate: "",
+            todayUsage: 0,
+            monthlyUsage: 0,
+            dailyLimit: 0,
+            status: "inactive",
+            purityLevel: 0,
+            tdsLevel: 0,
+            lastServiceDate: "",
+            nextServiceDate: "",
+            totalLiters: 0,
+            filterLifeRemaining: 0,
+            lastUsageTime: ""
+        };
+    }
+    
+    return {
+      deviceName: customerData.modelInstalled || "My RO Water Purifier",
+      serialNumber: customerData.serialNumber || "",
+      startDate: customerData.planStartDate || new Date().toISOString(),
+      endDate: customerData.planEndDate || new Date().toISOString(),
+      todayUsage: 0, // This would be fetched from device
+      monthlyUsage: customerData.currentTotalLitersUsed || 0, // Assuming this is monthly
+      dailyLimit: (customerData.currentPlanTotalLitersLimit && customerData.currentPlanTotalLitersLimit > 0) ? Math.round(customerData.currentPlanTotalLitersLimit / 30) : 50,
+      status: customerData.planStatus?.toLowerCase() === 'expired' ? 'EXPIRED' : 'active',
+      purityLevel: 98.2, // Placeholder
+      tdsLevel: parseInt(customerData.tdsAfter || '45', 10),
+      lastServiceDate: customerData.installationDate || "2024-07-15", // Placeholder
+      nextServiceDate: new Date(new Date(customerData.installationDate || Date.now()).setMonth(new Date(customerData.installationDate || Date.now()).getMonth() + 3)).toISOString(), // Placeholder
+      totalLiters: customerData.currentTotalLitersUsed || 0,
+      filterLifeRemaining: 85, // Placeholder
+      lastUsageTime: customerData.updatedAt || new Date().toISOString()
+    };
+}
+
 
 export const useRoData = () => {
+  const { customerData } = useAuth();
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [roDevice, setRoDevice] = useState<RODevice>(INITIAL_RO_DEVICE);
+  const [roDevice, setRoDevice] = useState<RODevice>(createInitialDeviceState(customerData));
   const [usageHistory, setUsageHistory] = useState<UsageData[]>(INITIAL_USAGE_HISTORY);
   const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
   const [notifications, setNotifications] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  useEffect(() => {
+    setRoDevice(createInitialDeviceState(customerData));
+  }, [customerData]);
+
 
   const addWaterUsage = useCallback((liters: number) => {
     setRoDevice(prev => {
@@ -85,14 +114,23 @@ export const useRoData = () => {
   }, [settings.autoRefresh, addWaterUsage]);
 
   useEffect(() => {
+    if (!roDevice.endDate) return;
     const alerts: Alert[] = [];
     const daysRemaining = calculateDaysRemaining(roDevice.endDate);
     
     if (daysRemaining <= 30 && settings.serviceReminders) {
       alerts.push({
         type: 'warning',
-        message: `Rental expires in ${daysRemaining} days`,
-        action: 'Renew Plan'
+        message: `Plan expires in ${daysRemaining} days`,
+        action: 'Renew'
+      });
+    }
+
+    if (roDevice.status === 'EXPIRED') {
+       alerts.push({
+        type: 'error',
+        message: 'Your plan has expired.',
+        action: 'Recharge'
       });
     }
     
@@ -100,7 +138,7 @@ export const useRoData = () => {
       alerts.push({
         type: 'error',
         message: 'Filter replacement required soon',
-        action: 'Order Filter'
+        action: 'Order'
       });
     }
     
@@ -108,7 +146,7 @@ export const useRoData = () => {
       alerts.push({
         type: 'warning',
         message: 'Daily usage limit almost reached',
-        action: 'View Usage'
+        action: 'View'
       });
     }
     
@@ -116,7 +154,7 @@ export const useRoData = () => {
       alerts.push({
         type: 'error',
         message: 'Water quality declining - TDS high',
-        action: 'Check Filter'
+        action: 'Check'
       });
     }
     
@@ -124,7 +162,7 @@ export const useRoData = () => {
       alerts.push({
         type: 'warning',
         message: 'Water purity below optimal level',
-        action: 'Service Now'
+        action: 'Service'
       });
     }
     
@@ -143,9 +181,10 @@ export const useRoData = () => {
   }, [roDevice, settings]);
   
   useEffect(() => {
-    const timer = setTimeout(() => setIsInitialLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
+    if (customerData) {
+        setIsInitialLoading(false);
+    }
+  }, [customerData]);
 
   const handleRefresh = () => {
     setIsLoading(true);

@@ -7,13 +7,13 @@ import {
   Droplets,
   Phone,
   Wrench,
-  CheckCircle
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { WaterUsageSimulator } from '@/components/water-usage-simulator';
 import { Notifications } from '@/components/notifications';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { useRoData } from '@/hooks/use-ro-data';
 import { calculateDaysRemaining, getDaysElapsed } from '@/lib/helpers';
 import { useToast } from "@/hooks/use-toast";
@@ -38,12 +38,6 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
     return 'text-red-600';
   };
   
-  const getProgressVariant = (value: number): "default" | "yellow" | "red" => {
-    if (value > 90) return "red";
-    if (value > 70) return "yellow";
-    return "default";
-  }
-
   const getQualityProgressColor = (value: number) => {
      if (value >= 98) return 'bg-green-500';
      if (value >= 95) return 'bg-yellow-500';
@@ -64,7 +58,7 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
 
   return (
     <div className="p-4 space-y-4">
-      <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-primary-foreground">
+      <Card className="bg-gradient-to-r from-primary to-teal-600 text-primary-foreground">
         <CardContent className="p-4">
           <div className="flex justify-between items-start">
             <div>
@@ -76,11 +70,11 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
               <p className="text-lg font-bold">{roDevice.totalLiters.toFixed(1)}L</p>
             </div>
           </div>
-          <div className={`inline-flex items-center mt-2 px-2 py-1 rounded-full text-xs ${
-            roDevice.status === 'active' ? 'bg-green-500/20 text-green-100' : 'bg-red-500/20 text-red-100'
+          <div className={`inline-flex items-center mt-2 px-2 py-1 rounded-full text-xs font-medium ${
+            roDevice.status === 'active' ? 'bg-green-100/20 text-green-50' : 'bg-red-100/20 text-red-50'
           }`}>
-            <CheckCircle className="w-3 h-3 mr-1" />
-            {roDevice.status === 'active' ? 'ACTIVE' : 'INACTIVE'}
+             {roDevice.status === 'active' ? <CheckCircle className="w-3 h-3 mr-1.5" /> : <AlertTriangle className="w-3 h-3 mr-1.5" />}
+            {roDevice.status.toUpperCase()}
           </div>
         </CardContent>
       </Card>
@@ -104,7 +98,7 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
             <div className={`text-2xl font-bold ${daysRemaining <= 30 ? 'text-destructive' : 'text-green-600'}`}>
               {daysRemaining}
             </div>
-            <p className="text-xs text-muted-foreground">Until renewal</p>
+            <p className="text-xs text-muted-foreground">Until plan expires</p>
           </CardContent>
         </Card>
         <Card>
@@ -181,12 +175,12 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Rental Information</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Plan Information</CardTitle></CardHeader>
         <CardContent className="space-y-2 text-sm">
           <div className="flex justify-between"><span className="text-muted-foreground">Start Date:</span><span className="font-medium">{new Date(roDevice.startDate).toLocaleDateString()}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">End Date:</span><span className="font-medium">{new Date(roDevice.endDate).toLocaleDateString()}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Days Completed:</span><span className="font-medium">{daysElapsed} days</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Monthly Usage:</span><span className="font-medium">{roDevice.monthlyUsage}L</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Total Usage:</span><span className="font-medium">{roDevice.totalLiters.toFixed(1)}L</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Last Usage:</span><span className="font-medium">{new Date(roDevice.lastUsageTime).toLocaleString()}</span></div>
         </CardContent>
       </Card>

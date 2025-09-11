@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/hooks/use-auth';
 
 type SettingsTabProps = ReturnType<typeof useRoData>;
 
@@ -18,6 +19,8 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
   const [isEditing, setIsEditing] = useState(false);
   const [tempLimit, setTempLimit] = useState(roDevice.dailyLimit);
   const { toast } = useToast();
+  const { customerData } = useAuth();
+
 
   const handleSaveLimit = () => {
     if (tempLimit >= 10 && tempLimit <= 200) {
@@ -97,19 +100,19 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
           <CardContent className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Model:</span>
-              <span className="font-medium">DP-Premium-2024</span>
+              <span className="font-medium">{roDevice.deviceName}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Installation:</span>
-              <span className="font-medium">{new Date(roDevice.startDate).toLocaleDateString()}</span>
+              <span className="font-medium">{roDevice.startDate ? new Date(roDevice.startDate).toLocaleDateString() : '-'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Warranty:</span>
-              <span className="font-medium text-green-600">2 Years</span>
+              <span className="text-muted-foreground">TDS (Before):</span>
+              <span className="font-medium">{customerData?.tdsBefore} ppm</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Total Filtered:</span>
-              <span className="font-medium">{roDevice.totalLiters.toFixed(1)}L</span>
+              <span className="text-muted-foreground">TDS (After):</span>
+              <span className="font-medium">{customerData?.tdsAfter} ppm</span>
             </div>
           </CardContent>
         </Card>

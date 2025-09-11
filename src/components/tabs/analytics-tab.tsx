@@ -6,7 +6,6 @@ import { Download, Share, CheckCircle, AlertCircle, Droplets } from 'lucide-reac
 import { useRoData } from '@/hooks/use-ro-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { UsageChart } from '@/components/charts/usage-chart';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 
@@ -14,9 +13,9 @@ type AnalyticsTabProps = ReturnType<typeof useRoData>;
 
 export const AnalyticsTab: FC<AnalyticsTabProps> = ({ roDevice, usageHistory }) => {
   const { toast } = useToast();
-  const weeklyAverage = usageHistory.reduce((sum, day) => sum + day.usage, 0) / usageHistory.length;
-  const maxDailyUsage = Math.max(...usageHistory.map(d => d.usage));
-  const minDailyUsage = Math.min(...usageHistory.map(d => d.usage));
+  const weeklyAverage = usageHistory.length > 0 ? usageHistory.reduce((sum, day) => sum + day.usage, 0) / usageHistory.length : 0;
+  const maxDailyUsage = usageHistory.length > 0 ? Math.max(...usageHistory.map(d => d.usage)) : 0;
+  const minDailyUsage = usageHistory.length > 0 ? Math.min(...usageHistory.map(d => d.usage)) : 0;
 
   const exportData = () => {
     const exportContent = {
@@ -36,7 +35,7 @@ export const AnalyticsTab: FC<AnalyticsTabProps> = ({ roDevice, usageHistory }) 
   };
   
   const handleShare = () => {
-    const shareText = `My AquaTrack Report: Monthly usage is ${roDevice.monthlyUsage.toFixed(1)}L and weekly average is ${weeklyAverage.toFixed(1)}L/day.`;
+    const shareText = `My AquaTrack Report: Total usage is ${roDevice.totalLiters.toFixed(1)}L and weekly average is ${weeklyAverage.toFixed(1)}L/day.`;
     if (navigator.share) {
       navigator.share({
         title: 'My AquaTrack Usage Report',
@@ -60,26 +59,26 @@ export const AnalyticsTab: FC<AnalyticsTabProps> = ({ roDevice, usageHistory }) 
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <Card className="bg-blue-50">
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-blue-800">This Month</CardTitle></CardHeader>
+        <Card className="bg-primary/10">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-primary">Total Usage</CardTitle></CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-blue-600">{roDevice.monthlyUsage.toFixed(1)}L</p>
-            <p className="text-xs text-blue-600">Total usage</p>
+            <p className="text-2xl font-bold text-primary">{roDevice.totalLiters.toFixed(1)}L</p>
+            <p className="text-xs text-primary/80">All time</p>
           </CardContent>
         </Card>
-        <Card className="bg-green-50">
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-green-800">Weekly Avg</CardTitle></CardHeader>
+        <Card className="bg-green-500/10">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-green-700">Weekly Avg</CardTitle></CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-green-600">{weeklyAverage.toFixed(1)}L</p>
-            <p className="text-xs text-green-600">Per day</p>
+            <p className="text-xs text-green-600/80">Per day</p>
           </CardContent>
         </Card>
       </div>
       
       <div className="grid grid-cols-3 gap-3">
-          <Card className="p-3 text-center"><p className="text-xs text-muted-foreground mb-1">Peak Day</p><p className="text-lg font-bold text-orange-600">{maxDailyUsage.toFixed(1)}L</p></Card>
+          <Card className="p-3 text-center"><p className="text-xs text-muted-foreground mb-1">Peak Day</p><p className="text-lg font-bold text-accent">{maxDailyUsage.toFixed(1)}L</p></Card>
           <Card className="p-3 text-center"><p className="text-xs text-muted-foreground mb-1">Low Day</p><p className="text-lg font-bold text-green-600">{minDailyUsage.toFixed(1)}L</p></Card>
-          <Card className="p-3 text-center"><p className="text-xs text-muted-foreground mb-1">Today</p><p className="text-lg font-bold text-blue-600">{roDevice.todayUsage.toFixed(1)}L</p></Card>
+          <Card className="p-3 text-center"><p className="text-xs text-muted-foreground mb-1">Today</p><p className="text-lg font-bold text-primary">{roDevice.todayUsage.toFixed(1)}L</p></Card>
       </div>
 
       <Card>
@@ -88,14 +87,14 @@ export const AnalyticsTab: FC<AnalyticsTabProps> = ({ roDevice, usageHistory }) 
         </CardHeader>
         <CardContent>
         <div className="space-y-3">
-          {usageHistory.map((day, index) => {
+          {usageHistory.map((day) => {
             const percentage = maxDailyUsage > 0 ? (day.usage / maxDailyUsage) * 100 : 0;
             const isToday = new Date(day.date).toDateString() === new Date().toDateString();
-            const barColor = isToday ? 'bg-blue-500' : day.usage > weeklyAverage ? 'bg-orange-500' : 'bg-green-500';
+            const barColor = isToday ? 'bg-primary' : day.usage > weeklyAverage ? 'bg-accent' : 'bg-green-500';
 
             return (
               <div key={day.day} className="flex items-center group">
-                <span className={cn("w-12 text-sm font-medium", isToday ? "text-blue-600" : "text-gray-700")}>
+                <span className={cn("w-12 text-sm font-medium", isToday ? "text-primary font-bold" : "text-muted-foreground")}>
                   {day.day}
                 </span>
                 <div className="flex-1 bg-muted rounded-full h-6 ml-3 relative overflow-hidden">
@@ -106,7 +105,7 @@ export const AnalyticsTab: FC<AnalyticsTabProps> = ({ roDevice, usageHistory }) 
                     <span className="text-xs text-white font-medium drop-shadow-sm">{day.usage.toFixed(1)}L</span>
                   </div>
                 </div>
-                 <span className="ml-2 text-xs text-gray-500 w-16 text-right">
+                 <span className="ml-2 text-xs text-muted-foreground w-16 text-right">
                     {day.usage > weeklyAverage ? `+${(day.usage - weeklyAverage).toFixed(1)}` : 
                      (day.usage - weeklyAverage).toFixed(1)}
                   </span>
@@ -114,7 +113,7 @@ export const AnalyticsTab: FC<AnalyticsTabProps> = ({ roDevice, usageHistory }) 
             );
           })}
         </div>
-        <div className="mt-4 text-xs text-gray-600">
+        <div className="mt-4 text-xs text-muted-foreground">
             <p>Average: {weeklyAverage.toFixed(1)}L/day | Peak: {maxDailyUsage.toFixed(1)}L | Low: {minDailyUsage.toFixed(1)}L</p>
           </div>
         </CardContent>
@@ -123,35 +122,35 @@ export const AnalyticsTab: FC<AnalyticsTabProps> = ({ roDevice, usageHistory }) 
       <Card>
           <CardHeader><CardTitle className="text-base">Smart Insights</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <div className="flex items-start p-3 bg-green-50 rounded-lg">
+            <div className="flex items-start p-3 bg-green-500/10 rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-green-800 font-semibold">Efficient Usage</p>
-                <p className="text-green-700 dark:text-green-400">You're consuming {((weeklyAverage / roDevice.dailyLimit) * 100).toFixed(0)}% of your daily limit on average.</p>
+                <p className="text-green-700/90">You're consuming {roDevice.dailyLimit > 0 ? ((weeklyAverage / roDevice.dailyLimit) * 100).toFixed(0) : 0}% of your daily limit on average.</p>
               </div>
             </div>
             
             {maxDailyUsage > roDevice.dailyLimit * 0.8 && (
-              <div className="flex items-start p-3 bg-orange-50 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-orange-600 mr-3 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start p-3 bg-accent/10 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-accent mr-3 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-orange-800 font-semibold">Peak Usage Alert</p>
-                  <p className="text-orange-700">Your highest usage day was {maxDailyUsage.toFixed(1)}L. Consider spreading usage.</p>
+                  <p className="text-amber-800 font-semibold">Peak Usage Alert</p>
+                  <p className="text-amber-700/90">Your highest usage day was {maxDailyUsage.toFixed(1)}L. Consider spreading usage.</p>
                 </div>
               </div>
             )}
             
-            <div className="flex items-start p-3 bg-blue-50 rounded-lg">
-              <Droplets className="w-5 h-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
+            <div className="flex items-start p-3 bg-primary/10 rounded-lg">
+              <Droplets className="w-5 h-5 text-primary mr-3 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-blue-800 font-semibold">Water Quality Trend</p>
-                <p className="text-blue-700">Filter efficiency is at {Math.round(roDevice.filterLifeRemaining)}%. Plan for replacement soon.</p>
+                <p className="text-primary-800 font-semibold">Water Quality Trend</p>
+                <p className="text-primary-700/90">Filter efficiency is at {Math.round(roDevice.filterLifeRemaining)}%. Plan for replacement soon.</p>
               </div>
             </div>
           </CardContent>
       </Card>
       
-      <Button size="lg" className="w-full bg-blue-500 hover:bg-blue-600" onClick={handleShare}>
+      <Button size="lg" className="w-full" onClick={handleShare}>
           <Share className="mr-2 h-4 w-4" /> Share Report
       </Button>
     </div>
