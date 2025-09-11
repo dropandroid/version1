@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Loader2, ExternalLink, Phone } from "lucide-react";
+import { Loader2, ExternalLink, Phone, LogOut } from "lucide-react";
 import Link from "next/link";
 
 const GoogleIcon = () => (
@@ -39,13 +39,18 @@ export default function LoginPage() {
 
     const handleTryAgain = () => {
         signOut().then(() => {
-            setSignInState('default');
             handleSignIn();
         });
     }
 
+    const handleSignOut = () => {
+        signOut().then(() => {
+            setSignInState('default');
+        });
+    }
+
     const renderContent = () => {
-        if (signInState === 'loading' || (loading && user)) {
+        if (signInState === 'loading' || (loading && user && signInState !== 'unregistered')) {
             return (
                 <div className="flex flex-col items-center justify-center">
                     <Loader2 className="mr-2 h-6 w-6 animate-spin" />
@@ -59,7 +64,7 @@ export default function LoginPage() {
                 <div className="bg-card p-6 rounded-lg shadow-md border">
                     <h3 className="text-lg font-semibold text-foreground mb-2">Email Not Registered</h3>
                     <p className="text-muted-foreground mb-4 text-sm">
-                        The email you used is not associated with an existing account.
+                        The email <span className="font-semibold text-primary">{user?.email}</span> is not associated with an existing account.
                     </p>
                     <div className="space-y-3">
                         <Button size="lg" className="w-full" asChild>
@@ -72,9 +77,15 @@ export default function LoginPage() {
                              <Phone className="mr-2 h-4 w-4" />
                             Already a customer? Call Support
                         </Button>
-                         <Button size="sm" variant="link" onClick={handleTryAgain}>
-                            Try a different email
-                        </Button>
+                        <div className="flex items-center justify-center space-x-4 pt-2">
+                             <Button size="sm" variant="link" onClick={handleTryAgain}>
+                                Try a different email
+                            </Button>
+                            <Button size="sm" variant="link" className="text-muted-foreground" onClick={handleSignOut}>
+                                <LogOut className="mr-1 h-3 w-3" />
+                                Sign Out
+                            </Button>
+                        </div>
                     </div>
                 </div>
             );

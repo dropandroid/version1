@@ -103,10 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!user && !isAuthPage) {
       router.push('/login');
-    } else if (user && pathname === '/login') {
-      if (customerStatus === 'verified') {
+    } else if (user && pathname === '/login' && customerStatus !== 'unverified') {
         router.push('/');
-      }
     } else if (user && customerStatus === 'unverified' && pathname !== '/verify-customer' && pathname !== '/login') {
       router.push('/verify-customer');
     } else if (user && customerStatus === 'verified' && pathname === '/verify-customer') {
@@ -124,7 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!userEmail) {
         throw new Error("Could not retrieve email from Google Sign-In.");
       }
-
+      
+      setUser(result.user);
       const customer = await getCustomerByEmail(userEmail);
 
       if (customer) {
@@ -135,11 +134,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error("Error during sign-in process:", error);
-      toast({
-          variant: "destructive",
-          title: "Sign-In Error",
-          description: "An unexpected error occurred. Please try again.",
-      });
+      if ((error as any).code !== 'auth/popup-closed-by-user') {
+          toast({
+              variant: "destructive",
+              title: "Sign-In Error",
+              description: "An unexpected error occurred. Please try again.",
+          });
+      }
+      // Sign out to clean up the state if sign-in fails partway through
+      await firebaseSignOut(auth);
+      setUser(null);
       return 'error';
     }
   };
@@ -149,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await firebaseSignOut(auth);
       setCustomerStatus('unverified');
       setCustomerData(null);
+      setUser(null);
       router.push('/login');
     } catch (error) {
       console.error("Error signing out", error);
