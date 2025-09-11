@@ -209,7 +209,7 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
       </Card>
 
       <div className="grid grid-cols-2 gap-4">
-        <Button size="lg" onClick={() => toast({ title: "Calling Support", description: "Contacting +91-1800-123-4567" })}>
+        <Button size="lg" onClick={() => toast({ title: "Calling Support", description: "Contacting +91-7979784087" })}>
           <Phone /> Support
         </Button>
         <Button size="lg" variant="secondary" onClick={() => toast({ title: "Service Request", description: "Your service request has been submitted."})}>
