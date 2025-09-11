@@ -34,26 +34,63 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const CUSTOMER_DATA_STORAGE_KEY = 'aquaTrackCustomerData';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [customerStatus, setCustomerStatus] = useState<CustomerVerificationStatus>('unverified');
-  const [customerData, setCustomerData] = useState<CustomerData | null>(null);
+  const [customerData, setCustomerDataState] = useState<CustomerData | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      if (!user) {
+      if (user) {
+        setUser(user);
+        // Check for cached customer data
+        try {
+          const cachedData = localStorage.getItem(CUSTOMER_DATA_STORAGE_KEY);
+          if (cachedData) {
+            const parsedData: CustomerData = JSON.parse(cachedData);
+            // Ensure cached data belongs to the current user
+            if (parsedData.google_email === user.email) {
+              setCustomerDataState(parsedData);
+              setCustomerStatus('verified');
+            } else {
+              // Clear stale data if user is different
+              localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to parse customer data from localStorage", e);
+          localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);
+        }
+      } else {
+        setUser(null);
         setCustomerStatus('unverified');
-        setCustomerData(null);
+        setCustomerDataState(null);
+        localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
+
+  const setCustomerData = (data: CustomerData | null) => {
+    setCustomerDataState(data);
+    if (data) {
+      try {
+        localStorage.setItem(CUSTOMER_DATA_STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.error("Failed to save customer data to localStorage", e);
+      }
+    } else {
+      localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);
+    }
+  };
+
 
    useEffect(() => {
     if (loading) return;
@@ -92,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, customerStatus, customerData, setCustomerStatus, setCustomerData, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, customerStatus, customerData: customerData, setCustomerStatus, setCustomerData, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,10 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Fingerprint, KeyRound } from 'lucide-react';
+import { Loader2, Fingerprint, KeyRound, Mail } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { verifyCustomerPin } from '@/lib/dynamodb';
+import { verifyCustomerPin, getCustomerByEmail } from '@/lib/dynamodb';
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer ID is required"),
@@ -24,6 +24,7 @@ type VerificationFormValues = z.infer<typeof formSchema>;
 
 export default function VerifyCustomerPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(true);
   const { user, loading, setCustomerStatus, setCustomerData } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -35,6 +36,29 @@ export default function VerifyCustomerPage() {
       pin: '',
     },
   });
+
+  useEffect(() => {
+    if (user?.email) {
+      setIsSuggesting(true);
+      getCustomerByEmail(user.email)
+        .then(customer => {
+          if (customer?.generatedCustomerId) {
+            form.setValue('customerId', customer.generatedCustomerId);
+            toast({
+              title: "Customer ID Found",
+              description: "We've pre-filled your Customer ID based on your email.",
+            });
+          }
+        })
+        .catch(err => {
+            console.error("Failed to suggest customer ID", err);
+        })
+        .finally(() => {
+          setIsSuggesting(false);
+        });
+    }
+  }, [user, form, toast]);
+
 
   const onSubmit = async (values: VerificationFormValues) => {
     setIsLoading(true);
@@ -70,10 +94,11 @@ export default function VerifyCustomerPage() {
       }
     } catch (error) {
       console.error("Verification request failed:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Could not connect to the server. Please try again later.';
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Could not connect to the server. Please try again later.',
+        description: errorMessage,
       });
       setIsLoading(false);
     }
@@ -102,7 +127,11 @@ export default function VerifyCustomerPage() {
                 name="customerId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center"><Fingerprint className="mr-2 h-4 w-4" /> Customer ID</FormLabel>
+                    <FormLabel className="flex items-center">
+                        <Fingerprint className="mr-2 h-4 w-4" /> 
+                        Customer ID
+                        {isSuggesting && <Loader2 className="ml-2 h-3 w-3 animate-spin" />}
+                    </FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., JH09d01301" {...field} />
                     </FormControl>
@@ -123,7 +152,7 @@ export default function VerifyCustomerPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || isSuggesting}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -135,6 +164,9 @@ export default function VerifyCustomerPage() {
               </Button>
             </form>
           </Form>
+           <p className="text-xs text-muted-foreground mt-4 text-center flex items-center justify-center">
+            <Mail className="mr-2 h-3 w-3" /> {user.email}
+          </p>
         </CardContent>
       </Card>
     </div>
