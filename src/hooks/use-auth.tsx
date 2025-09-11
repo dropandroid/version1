@@ -17,15 +17,17 @@ import {
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter, usePathname } from "next/navigation";
+import type { CustomerData } from '@/lib/types';
 
-// Add a new state for customer verification
 type CustomerVerificationStatus = 'unverified' | 'verified';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   customerStatus: CustomerVerificationStatus;
+  customerData: CustomerData | null;
   setCustomerStatus: (status: CustomerVerificationStatus) => void;
+  setCustomerData: (data: CustomerData | null) => void;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -36,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [customerStatus, setCustomerStatus] = useState<CustomerVerificationStatus>('unverified');
+  const [customerData, setCustomerData] = useState<CustomerData | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -43,8 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       if (!user) {
-        // Reset verification status on logout
         setCustomerStatus('unverified');
+        setCustomerData(null);
       }
       setLoading(false);
     });
@@ -73,7 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      // On successful Google sign-in, redirect to the verification page
       router.push('/verify-customer');
     } catch (error) {
       console.error("Error signing in with Google", error);
@@ -90,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, customerStatus, setCustomerStatus, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, customerStatus, customerData, setCustomerStatus, setCustomerData, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

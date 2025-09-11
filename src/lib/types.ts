@@ -35,3 +35,13 @@ export interface Alert {
   message: string;
   action: string;
 }
+
+export interface CustomerData {
+    generatedCustomerId: string;
+    customerName: string;
+    customerAddress: string;
+    customerCity: string;
+    customerPhone: string;
+    customerPin: string;
+    google_email?: string;
+}

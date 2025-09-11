@@ -1,5 +1,6 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import type { CustomerData } from '@/lib/types';
 
 const client = new DynamoDBClient({
   region: process.env.DROPPURITY_AWS_REGION,
@@ -11,12 +12,12 @@ const client = new DynamoDBClient({
 
 const docClient = DynamoDBDocumentClient.from(client);
 
-export const verifyCustomerPin = async (customerId: string, pin: string, googleEmail: string): Promise<boolean> => {
+export const verifyCustomerPin = async (customerId: string, pin: string, googleEmail: string): Promise<CustomerData | null> => {
   try {
     const command = new GetCommand({
-      TableName: "droppurity-customers", // Corrected table name
+      TableName: "droppurity-customers",
       Key: {
-        generatedCustomerId: customerId, // Corrected key name
+        generatedCustomerId: customerId,
       },
     });
 
@@ -24,38 +25,37 @@ export const verifyCustomerPin = async (customerId: string, pin: string, googleE
 
     if (!Item) {
       console.log("Customer not found");
-      return false; // Customer ID does not exist
+      return null;
     }
 
-    // Assuming PIN is stored as the last 4 digits of a 'customerPhone' attribute
-    const storedMobile = Item.customerPhone as string; // Corrected attribute name
+    const storedMobile = Item.customerPhone as string;
     if (!storedMobile || storedMobile.length < 4) {
         console.log("Mobile number not found or too short for customer");
-        return false;
+        return null;
     }
     const expectedPin = storedMobile.slice(-4);
     
     if (pin === expectedPin) {
-      // PIN is correct, now link the Google email
       const updateCommand = new UpdateCommand({
-        TableName: "droppurity-customers", // Corrected table name
+        TableName: "droppurity-customers",
         Key: {
-          generatedCustomerId: customerId, // Corrected key name
+          generatedCustomerId: customerId,
         },
         UpdateExpression: "set google_email = :email",
         ExpressionAttributeValues: {
           ":email": googleEmail,
         },
+        ReturnValues: "ALL_NEW",
       });
-      await docClient.send(updateCommand);
+      const { Attributes } = await docClient.send(updateCommand);
       console.log("Customer verified and email linked.");
-      return true;
+      return Attributes as CustomerData;
     } else {
       console.log("Incorrect PIN");
-      return false; // PIN is incorrect
+      return null;
     }
   } catch (error) {
     console.error("Error verifying customer in DynamoDB:", error);
-    return false;
+    return null;
   }
 };

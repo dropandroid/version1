@@ -13,7 +13,7 @@ import { ProfileTab } from '@/components/tabs/profile-tab';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { WifiOff } from 'lucide-react';
+import { WifiOff, User, Home as HomeIcon, Phone, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
@@ -30,35 +30,49 @@ const AppSkeleton: FC = () => (
   </div>
 );
 
-const DisconnectedState: FC = () => (
-    <div className="p-4 mt-8">
-        <Card className="text-center">
-            <CardHeader>
-                <WifiOff className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                <CardTitle>No Device Connected</CardTitle>
-                <CardDescription>
-                    It looks like you haven't set up your AquaTrack device yet.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <p className="mb-4 text-sm text-muted-foreground">
-                    Please go to the setup page to connect your device to your Wi-Fi network.
-                </p>
-                <Link href="/setup" passHref>
-                    <Button>Go to Device Setup</Button>
-                </Link>
-            </CardContent>
-        </Card>
-    </div>
-);
+const DisconnectedState: FC = () => {
+    const { customerData } = useAuth();
+    
+    return (
+        <div className="p-4 mt-8">
+            <Card>
+                <CardHeader>
+                    <div className="flex justify-center items-center mb-4">
+                        <WifiOff className="w-12 h-12 text-muted-foreground" />
+                    </div>
+                    <CardTitle className="text-center">No Device Connected</CardTitle>
+                    <CardDescription className="text-center">
+                        Your account is verified. Please connect your AquaTrack device to begin monitoring.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {customerData && (
+                        <div className="mb-6 border-t pt-4">
+                             <h3 className="text-lg font-semibold text-center mb-4 text-primary">Customer Details</h3>
+                             <div className="space-y-3 text-sm">
+                                <div className="flex items-center"><User className="w-4 h-4 mr-3 text-muted-foreground"/><span className="font-medium">{customerData.customerName}</span></div>
+                                <div className="flex items-center"><MapPin className="w-4 h-4 mr-3 text-muted-foreground"/><span className="font-medium">{customerData.customerAddress}, {customerData.customerCity}</span></div>
+                                <div className="flex items-center"><Phone className="w-4 h-4 mr-3 text-muted-foreground"/><span className="font-medium">{customerData.customerPhone}</span></div>
+                                <div className="flex items-center"><HomeIcon className="w-4 h-4 mr-3 text-muted-foreground"/><span className="font-medium">Customer ID: {customerData.generatedCustomerId}</span></div>
+                            </div>
+                        </div>
+                    )}
+                    <Link href="/setup" passHref>
+                        <Button size="lg" className="w-full">Connect Device</Button>
+                    </Link>
+                </CardContent>
+            </Card>
+        </div>
+    );
+};
 
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('home');
   const roData = useRoData();
-  const { user, loading, customerStatus } = useAuth();
+  const { user, loading, customerStatus, customerData } = useAuth();
 
-  if (loading || !user || customerStatus !== 'verified') {
+  if (loading || !user || customerStatus !== 'verified' || !customerData) {
     return (
         <div className="flex items-center justify-center min-h-screen">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -66,11 +80,10 @@ export default function Home() {
     )
   }
 
-  // A simple way to check if data has been loaded or is still in its initial "disconnected" state.
   const isConnected = roData.roDevice.serialNumber !== '';
 
   const renderTab = () => {
-    if (roData.isInitialLoading) {
+    if (roData.isInitialLoading && isConnected) {
       return <AppSkeleton />;
     }
     if (!isConnected) {

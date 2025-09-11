@@ -24,7 +24,7 @@ type VerificationFormValues = z.infer<typeof formSchema>;
 
 export default function VerifyCustomerPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const { user, loading, setCustomerStatus } = useAuth();
+  const { user, loading, setCustomerStatus, setCustomerData } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -50,13 +50,14 @@ export default function VerifyCustomerPage() {
     }
     
     try {
-      const isVerified = await verifyCustomerPin(values.customerId, values.pin, user.email);
+      const customerData = await verifyCustomerPin(values.customerId, values.pin, user.email);
 
-      if (isVerified) {
+      if (customerData) {
         toast({
           title: 'Verification Successful!',
           description: 'Welcome to your AquaTrack dashboard.',
         });
+        setCustomerData(customerData);
         setCustomerStatus('verified');
         router.push('/');
       } else {
