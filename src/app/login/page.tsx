@@ -1,9 +1,11 @@
 
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, ExternalLink, Phone } from "lucide-react";
+import Link from "next/link";
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
@@ -18,6 +20,20 @@ const GoogleIcon = () => (
 
 export default function LoginPage() {
     const { signInWithGoogle, loading, user } = useAuth();
+    const [signInState, setSignInState] = useState<'default' | 'loading' | 'unregistered'>('default');
+
+    const handleSignIn = async () => {
+        setSignInState('loading');
+        const result = await signInWithGoogle();
+        if (result === 'unregistered') {
+            setSignInState('unregistered');
+        }
+    };
+    
+    const handleCallSupport = () => {
+        window.location.href = 'tel:7979784087';
+    };
+
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
@@ -25,15 +41,41 @@ export default function LoginPage() {
                 <h1 className="text-4xl font-bold text-primary mb-2">Droppurity</h1>
                 <p className="text-muted-foreground mb-8">Monitor your water, effortlessly.</p>
 
-                {(loading || user) ? (
-                     <Button disabled size="lg" className="w-full">
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Please wait
-                    </Button>
+                {signInState === 'unregistered' ? (
+                    <div className="bg-card p-6 rounded-lg shadow-md border">
+                        <h3 className="text-lg font-semibold text-foreground mb-2">Email Not Registered</h3>
+                        <p className="text-muted-foreground mb-4 text-sm">
+                            The email you used is not associated with an existing account.
+                        </p>
+                        <div className="space-y-3">
+                            <Button size="lg" className="w-full" asChild>
+                                <a href="https://droppurity.in" target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    Buy Now
+                                </a>
+                            </Button>
+                            <Button size="lg" variant="outline" className="w-full" onClick={handleCallSupport}>
+                                 <Phone className="mr-2 h-4 w-4" />
+                                Already a customer? Call Support
+                            </Button>
+                             <Button size="sm" variant="link" onClick={() => setSignInState('default')}>
+                                Try a different email
+                            </Button>
+                        </div>
+                    </div>
                 ) : (
-                    <Button onClick={signInWithGoogle} size="lg" className="w-full">
-                        <GoogleIcon />
-                        Sign in with Google
+                     <Button 
+                        onClick={handleSignIn} 
+                        size="lg" 
+                        className="w-full"
+                        disabled={signInState === 'loading' || !!user}
+                    >
+                        {(signInState === 'loading' || !!user) ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <GoogleIcon />
+                        )}
+                        {signInState === 'loading' ? 'Signing in...' : 'Sign in with Google'}
                     </Button>
                 )}
                 
