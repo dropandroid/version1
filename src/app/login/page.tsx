@@ -39,6 +39,7 @@ export default function LoginPage() {
 
     const handleTryAgain = () => {
         signOut().then(() => {
+            setSignInState('default');
             handleSignIn();
         });
     }
