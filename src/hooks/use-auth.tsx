@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.push('/verify-customer');
         return 'success';
       } else {
-        await firebaseSignOut(auth);
+        // Don't sign out immediately, let the login page handle it
         return 'unregistered';
       }
     } catch (error) {

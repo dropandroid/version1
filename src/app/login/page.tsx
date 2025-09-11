@@ -19,7 +19,7 @@ const GoogleIcon = () => (
 
 
 export default function LoginPage() {
-    const { signInWithGoogle, loading, user } = useAuth();
+    const { signInWithGoogle, loading, user, signOut } = useAuth();
     const [signInState, setSignInState] = useState<'default' | 'loading' | 'unregistered'>('default');
 
     const handleSignIn = async () => {
@@ -27,12 +27,80 @@ export default function LoginPage() {
         const result = await signInWithGoogle();
         if (result === 'unregistered') {
             setSignInState('unregistered');
+        } else if (result === 'error') {
+            setSignInState('default'); // Reset on error
         }
     };
     
     const handleCallSupport = () => {
         window.location.href = 'tel:7979784087';
     };
+
+    const handleTryAgain = () => {
+        signOut().then(() => {
+            setSignInState('default');
+        });
+    }
+
+    const renderContent = () => {
+        if (signInState === 'loading' || loading) {
+            return (
+                <div className="flex flex-col items-center justify-center">
+                    <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                    <p className="mt-2 text-muted-foreground">Verifying your account...</p>
+                </div>
+            );
+        }
+
+        if (signInState === 'unregistered') {
+             return (
+                <div className="bg-card p-6 rounded-lg shadow-md border">
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Email Not Registered</h3>
+                    <p className="text-muted-foreground mb-4 text-sm">
+                        The email you used is not associated with an existing account.
+                    </p>
+                    <div className="space-y-3">
+                        <Button size="lg" className="w-full" asChild>
+                            <a href="https://droppurity.in" target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Buy Now
+                            </a>
+                        </Button>
+                        <Button size="lg" variant="outline" className="w-full" onClick={handleCallSupport}>
+                             <Phone className="mr-2 h-4 w-4" />
+                            Already a customer? Call Support
+                        </Button>
+                         <Button size="sm" variant="link" onClick={handleTryAgain}>
+                            Try a different email
+                        </Button>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-4">
+                 <Button 
+                    onClick={handleSignIn} 
+                    size="lg" 
+                    className="w-full"
+                    disabled={signInState === 'loading' || !!user}
+                >
+                    <GoogleIcon />
+                    Sign in with Google
+                </Button>
+                <div className="text-center">
+                    <p className="text-sm text-muted-foreground">New here?</p>
+                    <Button size="lg" variant="outline" className="w-full mt-2" asChild>
+                        <a href="https://droppurity.in" target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            Buy a new plan
+                        </a>
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
 
     return (
@@ -41,43 +109,7 @@ export default function LoginPage() {
                 <h1 className="text-4xl font-bold text-primary mb-2">Droppurity</h1>
                 <p className="text-muted-foreground mb-8">Monitor your water, effortlessly.</p>
 
-                {signInState === 'unregistered' ? (
-                    <div className="bg-card p-6 rounded-lg shadow-md border">
-                        <h3 className="text-lg font-semibold text-foreground mb-2">Email Not Registered</h3>
-                        <p className="text-muted-foreground mb-4 text-sm">
-                            The email you used is not associated with an existing account.
-                        </p>
-                        <div className="space-y-3">
-                            <Button size="lg" className="w-full" asChild>
-                                <a href="https://droppurity.in" target="_blank" rel="noopener noreferrer">
-                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                    Buy Now
-                                </a>
-                            </Button>
-                            <Button size="lg" variant="outline" className="w-full" onClick={handleCallSupport}>
-                                 <Phone className="mr-2 h-4 w-4" />
-                                Already a customer? Call Support
-                            </Button>
-                             <Button size="sm" variant="link" onClick={() => setSignInState('default')}>
-                                Try a different email
-                            </Button>
-                        </div>
-                    </div>
-                ) : (
-                     <Button 
-                        onClick={handleSignIn} 
-                        size="lg" 
-                        className="w-full"
-                        disabled={signInState === 'loading' || !!user}
-                    >
-                        {(signInState === 'loading' || !!user) ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <GoogleIcon />
-                        )}
-                        {signInState === 'loading' ? 'Signing in...' : 'Sign in with Google'}
-                    </Button>
-                )}
+                {renderContent()}
                 
                 <p className="text-xs text-muted-foreground mt-12">
                     By continuing, you agree to our Terms of Service and Privacy Policy.
