@@ -18,6 +18,8 @@ import {
 import { auth } from "@/lib/firebase";
 import { useRouter, usePathname } from "next/navigation";
 import type { CustomerData } from '@/lib/types';
+import { getCustomerByEmail } from "@/lib/dynamodb";
+import { useToast } from "@/hooks/use-toast";
 
 type CustomerVerificationStatus = 'unverified' | 'verified';
 
@@ -43,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [customerData, setCustomerDataState] = useState<CustomerData | null>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -112,10 +115,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-      router.push('/verify-customer');
+      const result = await signInWithPopup(auth, provider);
+      const userEmail = result.user.email;
+
+      if (!userEmail) {
+        throw new Error("Could not retrieve email from Google Sign-In.");
+      }
+
+      // Check if email is registered in DynamoDB
+      const customer = await getCustomerByEmail(userEmail);
+
+      if (customer) {
+        // Email is registered, proceed to verification
+        router.push('/verify-customer');
+      } else {
+        // Email is not registered, sign out and show error
+        await firebaseSignOut(auth);
+        toast({
+          variant: "destructive",
+          title: "Sign-In Failed",
+          description: "This email is not registered. Please use the email you provided during registration.",
+        });
+      }
     } catch (error) {
-      console.error("Error signing in with Google", error);
+      console.error("Error during sign-in process:", error);
+      // Ensure user is signed out on any error
+      await firebaseSignOut(auth);
+      toast({
+          variant: "destructive",
+          title: "Sign-In Error",
+          description: "An unexpected error occurred. Please try again.",
+      });
     }
   };
 
