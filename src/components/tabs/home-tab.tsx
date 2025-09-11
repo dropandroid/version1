@@ -24,6 +24,8 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
   const { roDevice, addWaterUsage, lastUpdated, handleRefresh, isLoading, notifications } = props;
   const daysRemaining = calculateDaysRemaining(roDevice.endDate);
   const daysElapsed = getDaysElapsed(roDevice.startDate);
+  const totalPlanDays = daysElapsed + daysRemaining;
+  const planProgressPercentage = totalPlanDays > 0 ? (daysElapsed / totalPlanDays) * 100 : 0;
   const usagePercentage = (roDevice.todayUsage / roDevice.dailyLimit) * 100;
   const { toast } = useToast();
 
@@ -138,6 +140,27 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
         </CardContent>
       </Card>
       
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Plan Progress</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+            <span>{new Date(roDevice.startDate).toLocaleDateString()}</span>
+            <span>{new Date(roDevice.endDate).toLocaleDateString()}</span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-3">
+            <div
+              className={`h-3 rounded-full bg-primary`}
+              style={{ width: `${planProgressPercentage}%` }}
+            ></div>
+          </div>
+          <p className="text-sm text-center text-muted-foreground mt-2">
+            {daysRemaining > 0 ? `${daysRemaining} days remaining` : 'Plan has expired'}
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader><CardTitle className="text-base">Water Quality Status</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-3 gap-4 text-center">
