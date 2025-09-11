@@ -30,6 +30,7 @@ export default function LoginPage() {
         } else if (result === 'error') {
             setSignInState('default'); // Reset on error
         }
+        // On 'success', the auth hook will redirect automatically
     };
     
     const handleCallSupport = () => {
@@ -43,7 +44,7 @@ export default function LoginPage() {
     }
 
     const renderContent = () => {
-        if (signInState === 'loading' || loading) {
+        if (signInState === 'loading' || (loading && user)) {
             return (
                 <div className="flex flex-col items-center justify-center">
                     <Loader2 className="mr-2 h-6 w-6 animate-spin" />
@@ -84,7 +85,7 @@ export default function LoginPage() {
                     onClick={handleSignIn} 
                     size="lg" 
                     className="w-full"
-                    disabled={signInState === 'loading' || !!user}
+                    disabled={signInState === 'loading'}
                 >
                     <GoogleIcon />
                     Sign in with Google

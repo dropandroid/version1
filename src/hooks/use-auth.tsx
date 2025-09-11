@@ -104,8 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user && !isAuthPage) {
       router.push('/login');
     } else if (user && pathname === '/login') {
-      router.push(customerStatus === 'verified' ? '/' : '/verify-customer');
-    } else if (user && customerStatus === 'unverified' && pathname !== '/verify-customer') {
+      if (customerStatus === 'verified') {
+        router.push('/');
+      }
+    } else if (user && customerStatus === 'unverified' && pathname !== '/verify-customer' && pathname !== '/login') {
       router.push('/verify-customer');
     } else if (user && customerStatus === 'verified' && pathname === '/verify-customer') {
       router.push('/');
@@ -147,6 +149,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
+      setCustomerStatus('unverified');
+      setCustomerData(null);
       router.push('/login');
     } catch (error) {
       console.error("Error signing out", error);
