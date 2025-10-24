@@ -54,12 +54,6 @@ export default function LoginPage() {
         });
     }
 
-    const handleSignOut = () => {
-        signOut().then(() => {
-            setSignInState('default');
-        });
-    }
-
     const renderContent = () => {
         if (signInState === 'loading' || (loading && user && signInState !== 'unregistered')) {
             return (
@@ -92,7 +86,7 @@ export default function LoginPage() {
                              <Button size="sm" variant="link" onClick={handleSwitchAccount}>
                                 Try a different email
                             </Button>
-                            <Button size="sm" variant="link" className="text-muted-foreground" onClick={handleSignOut}>
+                            <Button size="sm" variant="link" className="text-muted-foreground" onClick={signOut}>
                                 <LogOut className="mr-1 h-3 w-3" />
                                 Sign Out
                             </Button>

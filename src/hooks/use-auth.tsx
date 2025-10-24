@@ -176,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async (): Promise<SignInResult> => {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     try {
       const result = await signInWithPopup(auth, provider);
       return await handleAuthSuccess(result.user);
@@ -198,11 +199,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
-      setCustomerStatus('unverified');
-      setCustomerData(null);
-      setUser(null);
-      // We don't force a redirect here anymore, to allow the caller to control the next step.
-      // The useEffect will handle redirecting if necessary on other pages.
+      // State updates will trigger through onAuthStateChanged
+      setCustomerData(null); // Explicitly clear local storage
+      router.push('/login'); // Redirect to login for a fresh start
     } catch (error) {
       console.error("Error signing out", error);
        toast({
