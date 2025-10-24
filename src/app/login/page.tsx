@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Loader2, ExternalLink, Phone, LogOut, Replace } from "lucide-react";
+import { Loader2, ExternalLink, Phone, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const GoogleIcon = () => (
@@ -54,6 +54,17 @@ export default function LoginPage() {
         }
         await signOut(); 
     };
+
+    const handleSwitchAccount = async () => {
+        if (window.AndroidBridge && typeof window.AndroidBridge.triggerNativeSignOut === 'function') {
+            window.AndroidBridge.triggerNativeSignOut();
+            // The native side will trigger a new sign-in flow after its sign-out is complete.
+        } else {
+            // For web, we sign out and then immediately trigger the sign-in prompt again.
+            await signOut();
+            handleSignIn();
+        }
+    };
     
     const renderContent = () => {
         if (signInState === 'loading' || (loading && user && signInState !== 'unregistered')) {
@@ -68,7 +79,7 @@ export default function LoginPage() {
         if (signInState === 'unregistered') {
              return (
                 <div className="bg-card p-6 rounded-lg shadow-md border">
-                    <h3 className="text-lg font-semibold text-foreground mb-2">Email Not Registered</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">email is not registered</h3>
                     <p className="text-muted-foreground mb-4 text-sm">
                         The email <span className="font-semibold text-primary">{user?.email}</span> is not associated with an existing account.
                     </p>
@@ -84,7 +95,7 @@ export default function LoginPage() {
                             Already a customer? Call Support
                         </Button>
                         <div className="flex items-center justify-center space-x-4 pt-2">
-                             <Button size="sm" variant="link" onClick={handleHybridSignOut}>
+                             <Button size="sm" variant="link" onClick={handleSwitchAccount}>
                                 Try a different email
                             </Button>
                             <Button size="sm" variant="link" className="text-muted-foreground" onClick={handleHybridSignOut}>
@@ -110,12 +121,11 @@ export default function LoginPage() {
                 </Button>
                  {user && (
                     <Button
-                        onClick={handleHybridSignOut}
+                        onClick={handleSwitchAccount}
                         size="lg"
                         variant="outline"
                         className="w-full"
                     >
-                        <Replace className="mr-2 h-4 w-4" />
                         Switch Account
                     </Button>
                  )}
