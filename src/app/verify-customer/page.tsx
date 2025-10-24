@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Fingerprint, KeyRound, Mail, ShieldAlert } from 'lucide-react';
+import { Loader2, Fingerprint, KeyRound, Mail, ShieldAlert, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { verifyCustomerPin, getCustomerByEmail } from '@/lib/dynamodb';
@@ -30,7 +30,7 @@ export default function VerifyCustomerPage() {
   const [isSuggesting, setIsSuggesting] = useState(true);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [delay, setDelay] = useState(0);
-  const { user, loading, setCustomerStatus, setCustomerData } = useAuth();
+  const { user, loading, setCustomerStatus, setCustomerData, signOut } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const countdownInterval = useRef<NodeJS.Timeout | null>(null);
@@ -211,9 +211,15 @@ export default function VerifyCustomerPage() {
               </Button>
             </form>
           </Form>
-           <p className="text-xs text-muted-foreground mt-4 text-center flex items-center justify-center">
-            <Mail className="mr-2 h-3 w-3" /> {user.email}
-          </p>
+           <div className="text-xs text-muted-foreground mt-4 text-center flex items-center justify-center space-x-4">
+            <div className="flex items-center">
+              <Mail className="mr-2 h-3 w-3" /> {user.email}
+            </div>
+            <Button variant="link" size="sm" className="text-xs p-0 h-auto" onClick={() => signOut()}>
+              <LogOut className="mr-1 h-3 w-3" />
+              Sign Out
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
