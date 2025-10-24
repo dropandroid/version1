@@ -32,7 +32,11 @@ export default function LoginPage() {
             setSignInState('loading');
             const result = await signInWithGoogle();
             if (result === 'unregistered') {
-                setSignInState('unregistered');
+                if (window.AndroidBridge && typeof window.AndroidBridge.onEmailNotFound === 'function' && auth.currentUser?.email) {
+                    window.AndroidBridge.onEmailNotFound(auth.currentUser.email);
+                } else {
+                    setSignInState('unregistered');
+                }
             } else if (result === 'error') {
                 setSignInState('default');
                  toast({
@@ -45,7 +49,12 @@ export default function LoginPage() {
     };
     
     const handleCallSupport = () => {
-        window.location.href = 'tel:7979784087';
+        const phoneNumber = '7979784087';
+        if (window.AndroidBridge && typeof window.AndroidBridge.triggerPhoneCall === 'function') {
+            window.AndroidBridge.triggerPhoneCall(phoneNumber);
+        } else {
+            window.location.href = `tel:${phoneNumber}`;
+        }
     };
 
     const handleHybridSignOut = async () => {

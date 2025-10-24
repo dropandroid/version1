@@ -48,6 +48,8 @@ declare global {
     AndroidBridge?: {
         triggerGoogleSignIn: () => void;
         triggerNativeSignOut: () => void;
+        onEmailNotFound: (email: string) => void;
+        triggerPhoneCall: (phoneNumber: string) => void;
     };
   }
 }
@@ -100,7 +102,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithCredential(auth, credential)
         .then(async (result) => {
           console.log("Signed in from Android!", result.user);
-          await handleAuthSuccess(result.user);
+          const authResult = await handleAuthSuccess(result.user);
+           if (authResult === 'unregistered' && window.AndroidBridge && typeof window.AndroidBridge.onEmailNotFound === 'function') {
+                if (result.user.email) {
+                    window.AndroidBridge.onEmailNotFound(result.user.email);
+                }
+            }
         })
         .catch((error) => {
           console.error("Android Sign-In Error", error);
