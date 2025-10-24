@@ -23,14 +23,23 @@ export default function LoginPage() {
     const [signInState, setSignInState] = useState<'default' | 'loading' | 'unregistered'>('default');
 
     const handleSignIn = async () => {
-        setSignInState('loading');
-        const result = await signInWithGoogle();
-        if (result === 'unregistered') {
-            setSignInState('unregistered');
-        } else if (result === 'error') {
-            setSignInState('default'); // Reset on error
+        // Check if the "AndroidBridge" we are about to create exists
+        if (window.AndroidBridge && typeof window.AndroidBridge.triggerGoogleSignIn === 'function') {
+            // If we are in the Android app, call the native code
+            console.log("Calling AndroidBridge.triggerGoogleSignIn()");
+            window.AndroidBridge.triggerGoogleSignIn();
+        } else {
+            // If we are in a normal browser, use the popup method
+            console.log("Using standard web signInWithGoogle()");
+            setSignInState('loading');
+            const result = await signInWithGoogle();
+            if (result === 'unregistered') {
+                setSignInState('unregistered');
+            } else if (result === 'error') {
+                setSignInState('default'); // Reset on error
+            }
+            // On 'success', the auth hook will redirect automatically
         }
-        // On 'success', the auth hook will redirect automatically
     };
     
     const handleCallSupport = () => {

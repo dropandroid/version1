@@ -40,10 +40,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const CUSTOMER_DATA_STORAGE_KEY = 'aquaTrackCustomerData';
 
-// Extend window type for signInFromAndroid
+// Extend window type for our native bridges
 declare global {
   interface Window {
     signInFromAndroid?: (token: string) => void;
+    AndroidBridge?: {
+        triggerGoogleSignIn: () => void;
+    };
   }
 }
 
