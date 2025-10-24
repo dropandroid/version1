@@ -44,6 +44,7 @@ const CUSTOMER_DATA_STORAGE_KEY = 'aquaTrackCustomerData';
 declare global {
   interface Window {
     signInFromAndroid?: (token: string) => void;
+    signOutFromAndroid?: () => void;
     AndroidBridge?: {
         triggerGoogleSignIn: () => void;
     };
@@ -74,6 +75,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      }
   };
 
+  const signOut = async () => {
+    try {
+      await firebaseSignOut(auth);
+      // State updates will trigger through onAuthStateChanged
+      setCustomerData(null); // Explicitly clear local storage
+      router.push('/login'); // Redirect to login for a fresh start
+    } catch (error) {
+      console.error("Error signing out", error);
+       toast({
+          variant: "destructive",
+          title: "Sign-Out Error",
+          description: "Could not sign out properly. Please try again.",
+      });
+    }
+  };
+
   useEffect(() => {
     // This function must be added to your web app's code
     const signInFromAndroid = (googleIdToken: string) => {
@@ -98,13 +115,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
         });
     };
+
+    const signOutFromAndroid = () => {
+        console.log("Signing out from Android bridge...");
+        signOut();
+    };
     
     // Expose the function to the window object for the WebView to call
     window.signInFromAndroid = signInFromAndroid;
+    window.signOutFromAndroid = signOutFromAndroid;
 
     // Cleanup function to remove it when the component unmounts
     return () => {
       delete window.signInFromAndroid;
+      delete window.signOutFromAndroid;
     };
   }, [router, toast]);
 
@@ -193,22 +217,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await firebaseSignOut(auth);
       setUser(null);
       return 'error';
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      await firebaseSignOut(auth);
-      // State updates will trigger through onAuthStateChanged
-      setCustomerData(null); // Explicitly clear local storage
-      router.push('/login'); // Redirect to login for a fresh start
-    } catch (error) {
-      console.error("Error signing out", error);
-       toast({
-          variant: "destructive",
-          title: "Sign-Out Error",
-          description: "Could not sign out properly. Please try again.",
-      });
     }
   };
 
