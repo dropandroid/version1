@@ -56,18 +56,12 @@ export default function LoginPage() {
     };
 
     const handleSwitchAccount = async () => {
-        if (window.AndroidBridge && typeof window.AndroidBridge.triggerNativeSignOut === 'function') {
-            window.AndroidBridge.triggerNativeSignOut();
-            // The native side will trigger a new sign-in flow after its sign-out is complete.
-        } else {
-            // For web, we sign out and then immediately trigger the sign-in prompt again.
-            await signOut();
-            handleSignIn();
-        }
+        // This function handles both web and native sign-out triggers
+        handleHybridSignOut();
     };
     
     const renderContent = () => {
-        if (signInState === 'loading' || (loading && user && signInState !== 'unregistered')) {
+        if (signInState === 'loading' || (loading && !user && signInState !== 'unregistered')) {
             return (
                 <div className="flex flex-col items-center justify-center">
                     <Loader2 className="mr-2 h-6 w-6 animate-spin" />
@@ -79,7 +73,7 @@ export default function LoginPage() {
         if (signInState === 'unregistered') {
              return (
                 <div className="bg-card p-6 rounded-lg shadow-md border">
-                    <h3 className="text-lg font-semibold text-foreground mb-2">email is not registered</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Email Not Found</h3>
                     <p className="text-muted-foreground mb-4 text-sm">
                         The email <span className="font-semibold text-primary">{user?.email}</span> is not associated with an existing account.
                     </p>
