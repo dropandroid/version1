@@ -15,6 +15,7 @@ import {
   signInWithCredential,
   User,
   signOut as firebaseSignOut,
+  Auth,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter, usePathname } from "next/navigation";
@@ -27,6 +28,7 @@ type SignInResult = 'success' | 'unregistered' | 'error';
 
 interface AuthContextType {
   user: User | null;
+  auth: Auth;
   loading: boolean;
   customerStatus: CustomerVerificationStatus;
   customerData: CustomerData | null;
@@ -50,6 +52,7 @@ declare global {
         triggerNativeSignOut: () => void;
         onEmailNotFound: (email: string) => void;
         triggerPhoneCall: (phoneNumber: string) => void;
+        openExternalUrl: (url: string) => void;
     };
   }
 }
@@ -218,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, customerStatus, customerData, setCustomerStatus, setCustomerData, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, auth, loading, customerStatus, customerData, setCustomerStatus, setCustomerData, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

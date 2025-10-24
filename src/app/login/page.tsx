@@ -19,7 +19,7 @@ const GoogleIcon = () => (
 
 
 export default function LoginPage() {
-    const { signInWithGoogle, loading, user, signOut } = useAuth();
+    const { signInWithGoogle, loading, user, signOut, auth } = useAuth();
     const [signInState, setSignInState] = useState<'default' | 'loading' | 'unregistered'>('default');
     const { toast } = useToast();
 
@@ -57,6 +57,15 @@ export default function LoginPage() {
         }
     };
 
+    const handleBuyPlanClick = () => {
+        const url = "https://droppurity.in";
+        if (window.AndroidBridge && typeof window.AndroidBridge.openExternalUrl === 'function') {
+            window.AndroidBridge.openExternalUrl(url);
+        } else {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        }
+    };
+
     const handleHybridSignOut = async () => {
         if (window.AndroidBridge && typeof window.AndroidBridge.triggerNativeSignOut === 'function') {
             window.AndroidBridge.triggerNativeSignOut();
@@ -65,7 +74,6 @@ export default function LoginPage() {
     };
 
     const handleSwitchAccount = async () => {
-        // This function handles both web and native sign-out triggers
         handleHybridSignOut();
     };
     
@@ -87,11 +95,9 @@ export default function LoginPage() {
                         The email <span className="font-semibold text-primary">{user?.email}</span> is not associated with an existing account.
                     </p>
                     <div className="space-y-3">
-                        <Button size="lg" className="w-full" asChild>
-                            <a href="https://droppurity.in" target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="mr-2 h-4 w-4" />
-                                Buy Now
-                            </a>
+                        <Button size="lg" className="w-full" onClick={handleBuyPlanClick}>
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            Buy Now
                         </Button>
                         <Button size="lg" variant="outline" className="w-full" onClick={handleCallSupport}>
                              <Phone className="mr-2 h-4 w-4" />
@@ -134,11 +140,9 @@ export default function LoginPage() {
                  )}
                 <div className="text-center pt-4">
                     <p className="text-sm text-muted-foreground">New here?</p>
-                    <Button size="lg" variant="outline" className="w-full mt-2" asChild>
-                        <a href="https://droppurity.in" target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Buy a new plan
-                        </a>
+                    <Button size="lg" variant="outline" className="w-full mt-2" onClick={handleBuyPlanClick}>
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Buy a new plan
                     </Button>
                 </div>
             </div>
