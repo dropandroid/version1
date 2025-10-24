@@ -12,6 +12,7 @@ import {
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithCredential,
   User,
   signOut as firebaseSignOut,
 } from "firebase/auth";
@@ -39,6 +40,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const CUSTOMER_DATA_STORAGE_KEY = 'aquaTrackCustomerData';
 
+// Extend window type for signInFromAndroid
+declare global {
+  interface Window {
+    signInFromAndroid?: (token: string) => void;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,6 +55,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
+
+  const handleAuthSuccess = async (user: User): Promise<SignInResult> => {
+     const userEmail = user.email;
+     if (!userEmail) {
+       throw new Error("Could not retrieve email from the user.");
+     }
+     setUser(user);
+     const customer = await getCustomerByEmail(userEmail);
+     if (customer) {
+       router.push('/verify-customer');
+       return 'success';
+     } else {
+       return 'unregistered';
+     }
+  };
+
+  useEffect(() => {
+    // This function must be added to your web app's code
+    const signInFromAndroid = (googleIdToken: string) => {
+      console.log("Attempting sign in from Android with token...");
+      // 1. Create a Firebase credential from the token
+      const credential = GoogleAuthProvider.credential(googleIdToken);
+      
+      // 2. Sign in with that credential
+      signInWithCredential(auth, credential)
+        .then(async (result) => {
+          // Sign-in successful!
+          console.log("Signed in from Android!", result.user);
+          await handleAuthSuccess(result.user);
+        })
+        .catch((error) => {
+          // Handle errors
+          console.error("Android Sign-In Error", error);
+          toast({
+            variant: "destructive",
+            title: "Android Sign-In Error",
+            description: "Could not sign in using the provided token."
+          });
+        });
+    };
+    
+    // Expose the function to the window object for the WebView to call
+    window.signInFromAndroid = signInFromAndroid;
+
+    // Cleanup function to remove it when the component unmounts
+    return () => {
+      delete window.signInFromAndroid;
+    };
+  }, [router, toast]);
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -117,21 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      const userEmail = result.user.email;
-
-      if (!userEmail) {
-        throw new Error("Could not retrieve email from Google Sign-In.");
-      }
-      
-      setUser(result.user);
-      const customer = await getCustomerByEmail(userEmail);
-
-      if (customer) {
-        router.push('/verify-customer');
-        return 'success';
-      } else {
-        return 'unregistered';
-      }
+      return await handleAuthSuccess(result.user);
     } catch (error) {
       console.error("Error during sign-in process:", error);
       if ((error as any).code !== 'auth/popup-closed-by-user') {
@@ -161,7 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, customerStatus, customerData: customerData, setCustomerStatus, setCustomerData, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, customerStatus, customerData, setCustomerStatus, setCustomerData, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );
