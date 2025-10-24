@@ -17,7 +17,8 @@ import {
   signOut as firebaseSignOut,
   Auth,
 } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { auth, app } from "@/lib/firebase";
 import { useRouter, usePathname } from "next/navigation";
 import type { CustomerData } from '@/lib/types';
 import { getCustomerByEmail } from "@/lib/dynamodb";
@@ -36,6 +37,7 @@ interface AuthContextType {
   setCustomerData: (data: CustomerData | null) => void;
   signInWithGoogle: () => Promise<SignInResult>;
   signOut: () => Promise<void>;
+  requestNotificationPermission: () => Promise<NotificationPermission | 'unsupported'>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -96,6 +98,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
   };
+
+  const requestNotificationPermission = async (): Promise<NotificationPermission | 'unsupported'> => {
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.warn('Push notifications not supported in this browser.');
+        return 'unsupported';
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      console.log('Notification permission granted.');
+      try {
+        const messaging = getMessaging(app);
+        const currentToken = await getToken(messaging, { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY });
+        if (currentToken) {
+          console.log('FCM Token:', currentToken);
+          // In a real app, you would send this token to your server to associate it with the user
+          // e.g., await saveTokenToServer(currentToken);
+        } else {
+          console.log('No registration token available. Request permission to generate one.');
+        }
+      } catch (err) {
+        console.error('An error occurred while retrieving token. ', err);
+      }
+    } else {
+      console.log('Unable to get permission to notify.');
+    }
+    return permission;
+  }
 
   useEffect(() => {
     const signInFromAndroid = (googleIdToken: string) => {
@@ -168,6 +198,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        .then(function(registration) {
+          console.log('Service Worker registered with scope:', registration.scope);
+        }).catch(function(error) {
+          console.log('Service Worker registration failed:', error);
+        });
+        
+        const messaging = getMessaging(app);
+        onMessage(messaging, (payload) => {
+            console.log('Message received. ', payload);
+            toast({
+                title: payload.notification?.title,
+                description: payload.notification?.body,
+            });
+        });
+     }
+  }, []);
+
+
   const setCustomerData = (data: CustomerData | null) => {
     setCustomerDataState(data);
     if (data) {
@@ -220,8 +271,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const handleHybridSignOut = async () => {
+    if (window.AndroidBridge && typeof window.AndroidBridge.triggerNativeSignOut === 'function') {
+        window.AndroidBridge.triggerNativeSignOut();
+    }
+    await signOut(); 
+  };
+
+
   return (
-    <AuthContext.Provider value={{ user, auth, loading, customerStatus, customerData, setCustomerStatus, setCustomerData, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, auth, loading, customerStatus, customerData, setCustomerStatus, setCustomerData, signInWithGoogle, signOut, requestNotificationPermission }}>
       {children}
     </AuthContext.Provider>
   );

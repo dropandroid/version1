@@ -3,7 +3,7 @@
 
 import type { FC } from 'react';
 import { useState } from 'react';
-import { Save, X } from 'lucide-react';
+import { Save, X, Bell } from 'lucide-react';
 import { useRoData } from '@/hooks/use-ro-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
   const [isEditing, setIsEditing] = useState(false);
   const [tempLimit, setTempLimit] = useState(roDevice.dailyLimit);
   const { toast } = useToast();
-  const { customerData } = useAuth();
+  const { customerData, requestNotificationPermission } = useAuth();
 
 
   const handleSaveLimit = () => {
@@ -46,6 +46,17 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
     toast({ title: "Service Scheduled", description: "Your next service is booked." });
   };
 
+  const handleEnableNotifications = async () => {
+    const permission = await requestNotificationPermission();
+    if (permission === 'granted') {
+      toast({ title: "Notifications Enabled", description: "You will now receive alerts for important events." });
+    } else if (permission === 'denied') {
+      toast({ variant: 'destructive', title: "Notifications Blocked", description: "Please enable notifications in your browser or app settings." });
+    } else {
+       toast({ title: "Notifications Dismissed", description: "You can enable notifications later from settings." });
+    }
+  };
+
   const settingsOptions = [
     { key: 'usageAlerts', label: 'Usage Alerts' },
     { key: 'serviceReminders', label: 'Service Reminders' },
@@ -57,6 +68,19 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
   return (
     <div className="p-4 space-y-4">
       <h2 className="text-xl font-bold text-foreground">Settings & Service</h2>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Notifications</CardTitle></CardHeader>
+        <CardContent>
+           <Button className="w-full" onClick={handleEnableNotifications}>
+            <Bell className="mr-2 h-4 w-4" />
+            Enable Push Notifications
+          </Button>
+          <p className="text-xs text-muted-foreground mt-2 text-center">
+            Receive alerts for plan expiry, service reminders, and water quality issues.
+          </p>
+        </CardContent>
+      </Card>
       
       <Card>
         <CardHeader><CardTitle className="text-base">Device Settings</CardTitle></CardHeader>
