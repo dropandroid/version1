@@ -201,9 +201,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCustomerStatus('unverified');
       setCustomerData(null);
       setUser(null);
-      router.push('/login');
+      // We don't force a redirect here anymore, to allow the caller to control the next step.
+      // The useEffect will handle redirecting if necessary on other pages.
     } catch (error) {
       console.error("Error signing out", error);
+       toast({
+          variant: "destructive",
+          title: "Sign-Out Error",
+          description: "Could not sign out properly. Please try again.",
+      });
     }
   };
 

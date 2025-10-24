@@ -48,6 +48,8 @@ export default function LoginPage() {
 
     const handleSwitchAccount = () => {
         signOut().then(() => {
+            // After sign out is complete, trigger the sign in process again.
+            // This ensures the account chooser is displayed.
             handleSignIn();
         });
     }
@@ -113,7 +115,7 @@ export default function LoginPage() {
                 </Button>
                  {user && (
                     <Button
-                        onClick={() => signOut()}
+                        onClick={handleSwitchAccount}
                         size="lg"
                         variant="outline"
                         className="w-full"
