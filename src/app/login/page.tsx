@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Loader2, ExternalLink, Phone, LogOut } from "lucide-react";
+import { Loader2, ExternalLink, Phone, LogOut, Replace } from "lucide-react";
 import Link from "next/link";
 
 const GoogleIcon = () => (
@@ -46,7 +46,7 @@ export default function LoginPage() {
         window.location.href = 'tel:7979784087';
     };
 
-    const handleTryAgain = () => {
+    const handleSwitchAccount = () => {
         signOut().then(() => {
             handleSignIn();
         });
@@ -87,7 +87,7 @@ export default function LoginPage() {
                             Already a customer? Call Support
                         </Button>
                         <div className="flex items-center justify-center space-x-4 pt-2">
-                             <Button size="sm" variant="link" onClick={handleTryAgain}>
+                             <Button size="sm" variant="link" onClick={handleSwitchAccount}>
                                 Try a different email
                             </Button>
                             <Button size="sm" variant="link" className="text-muted-foreground" onClick={handleSignOut}>
@@ -111,7 +111,18 @@ export default function LoginPage() {
                     <GoogleIcon />
                     Sign in with Google
                 </Button>
-                <div className="text-center">
+                 {user && (
+                    <Button
+                        onClick={() => signOut()}
+                        size="lg"
+                        variant="outline"
+                        className="w-full"
+                    >
+                        <Replace className="mr-2 h-4 w-4" />
+                        Switch Account
+                    </Button>
+                 )}
+                <div className="text-center pt-4">
                     <p className="text-sm text-muted-foreground">New here?</p>
                     <Button size="lg" variant="outline" className="w-full mt-2" asChild>
                         <a href="https://droppurity.in" target="_blank" rel="noopener noreferrer">

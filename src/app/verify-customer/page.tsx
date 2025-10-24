@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Fingerprint, KeyRound, Mail, ShieldAlert, LogOut } from 'lucide-react';
+import { Loader2, Fingerprint, KeyRound, Mail, ShieldAlert, Replace } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { verifyCustomerPin, getCustomerByEmail } from '@/lib/dynamodb';
@@ -216,8 +216,8 @@ export default function VerifyCustomerPage() {
               <Mail className="mr-2 h-3 w-3" /> {user.email}
             </div>
             <Button variant="link" size="sm" className="text-xs p-0 h-auto" onClick={() => signOut()}>
-              <LogOut className="mr-1 h-3 w-3" />
-              Sign Out
+              <Replace className="mr-1 h-3 w-3" />
+              Switch Account
             </Button>
           </div>
         </CardContent>
