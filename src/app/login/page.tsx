@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink, Phone, LogOut, Replace } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
@@ -20,6 +21,7 @@ const GoogleIcon = () => (
 export default function LoginPage() {
     const { signInWithGoogle, loading, user, signOut } = useAuth();
     const [signInState, setSignInState] = useState<'default' | 'loading' | 'unregistered'>('default');
+    const { toast } = useToast();
 
     const handleSignIn = async () => {
         if (window.AndroidBridge && typeof window.AndroidBridge.triggerGoogleSignIn === 'function') {
@@ -33,6 +35,11 @@ export default function LoginPage() {
                 setSignInState('unregistered');
             } else if (result === 'error') {
                 setSignInState('default');
+                 toast({
+                    variant: "destructive",
+                    title: "Sign-In Error",
+                    description: "An unexpected error occurred during sign-in. Please try again.",
+                });
             }
         }
     };
@@ -41,13 +48,11 @@ export default function LoginPage() {
         window.location.href = 'tel:7979784087';
     };
 
-    const handleSwitchAccount = async () => {
+    const handleHybridSignOut = async () => {
         if (window.AndroidBridge && typeof window.AndroidBridge.triggerNativeSignOut === 'function') {
-            console.log("Calling AndroidBridge.triggerNativeSignOut()");
             window.AndroidBridge.triggerNativeSignOut();
         }
-        await signOut();
-        // After signOut, the auth hook will redirect to /login, and the user can sign in again.
+        await signOut(); 
     };
     
     const renderContent = () => {
@@ -79,10 +84,10 @@ export default function LoginPage() {
                             Already a customer? Call Support
                         </Button>
                         <div className="flex items-center justify-center space-x-4 pt-2">
-                             <Button size="sm" variant="link" onClick={handleSwitchAccount}>
+                             <Button size="sm" variant="link" onClick={handleHybridSignOut}>
                                 Try a different email
                             </Button>
-                            <Button size="sm" variant="link" className="text-muted-foreground" onClick={signOut}>
+                            <Button size="sm" variant="link" className="text-muted-foreground" onClick={handleHybridSignOut}>
                                 <LogOut className="mr-1 h-3 w-3" />
                                 Sign Out
                             </Button>
@@ -105,7 +110,7 @@ export default function LoginPage() {
                 </Button>
                  {user && (
                     <Button
-                        onClick={handleSwitchAccount}
+                        onClick={handleHybridSignOut}
                         size="lg"
                         variant="outline"
                         className="w-full"

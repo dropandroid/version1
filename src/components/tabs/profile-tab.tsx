@@ -30,6 +30,13 @@ export const ProfileTab: FC<ProfileTabProps> = ({ roDevice, setRoDevice }) => {
   const daysElapsed = roDevice.startDate ? getDaysElapsed(roDevice.startDate) : 0;
   const dailyAverage = daysElapsed > 0 ? roDevice.totalLiters / daysElapsed : 0;
 
+  const handleHybridSignOut = async () => {
+    if (window.AndroidBridge && typeof window.AndroidBridge.triggerNativeSignOut === 'function') {
+        window.AndroidBridge.triggerNativeSignOut();
+    }
+    await signOut(); 
+  };
+
   const handleExtendRental = () => {
     if (!roDevice.endDate) return;
     const extendedDate = new Date(roDevice.endDate);
@@ -113,7 +120,7 @@ export const ProfileTab: FC<ProfileTabProps> = ({ roDevice, setRoDevice }) => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        <Button variant="ghost" className="w-full" onClick={signOut}>
+        <Button variant="ghost" className="w-full" onClick={handleHybridSignOut}>
           <LogOut className="mr-2 h-4 w-4" /> Sign Out
         </Button>
       </div>

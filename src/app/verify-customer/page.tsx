@@ -78,6 +78,13 @@ export default function VerifyCustomerPage() {
     };
   }, [delay]);
 
+  const handleHybridSignOut = async () => {
+    if (window.AndroidBridge && typeof window.AndroidBridge.triggerNativeSignOut === 'function') {
+        window.AndroidBridge.triggerNativeSignOut();
+    }
+    await signOut(); 
+  };
+
   const handleFailedAttempt = () => {
     const newAttemptCount = failedAttempts + 1;
     setFailedAttempts(newAttemptCount);
@@ -215,7 +222,7 @@ export default function VerifyCustomerPage() {
             <div className="flex items-center">
               <Mail className="mr-2 h-3 w-3" /> {user.email}
             </div>
-            <Button variant="link" size="sm" className="text-xs p-0 h-auto" onClick={signOut}>
+            <Button variant="link" size="sm" className="text-xs p-0 h-auto" onClick={handleHybridSignOut}>
               <LogOut className="mr-1 h-3 w-3" />
               Sign Out
             </Button>
