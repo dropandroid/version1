@@ -5,7 +5,6 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink, Phone, LogOut, Replace } from "lucide-react";
-import Link from "next/link";
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
@@ -23,22 +22,18 @@ export default function LoginPage() {
     const [signInState, setSignInState] = useState<'default' | 'loading' | 'unregistered'>('default');
 
     const handleSignIn = async () => {
-        // Check if the "AndroidBridge" we are about to create exists
         if (window.AndroidBridge && typeof window.AndroidBridge.triggerGoogleSignIn === 'function') {
-            // If we are in the Android app, call the native code
             console.log("Calling AndroidBridge.triggerGoogleSignIn()");
             window.AndroidBridge.triggerGoogleSignIn();
         } else {
-            // If we are in a normal browser, use the popup method
             console.log("Using standard web signInWithGoogle()");
             setSignInState('loading');
             const result = await signInWithGoogle();
             if (result === 'unregistered') {
                 setSignInState('unregistered');
             } else if (result === 'error') {
-                setSignInState('default'); // Reset on error
+                setSignInState('default');
             }
-            // On 'success', the auth hook will redirect automatically
         }
     };
     
@@ -46,14 +41,15 @@ export default function LoginPage() {
         window.location.href = 'tel:7979784087';
     };
 
-    const handleSwitchAccount = () => {
-        signOut().then(() => {
-            // After sign out is complete, trigger the sign in process again.
-            // This ensures the account chooser is displayed.
-            handleSignIn();
-        });
-    }
-
+    const handleSwitchAccount = async () => {
+        if (window.AndroidBridge && typeof window.AndroidBridge.triggerNativeSignOut === 'function') {
+            console.log("Calling AndroidBridge.triggerNativeSignOut()");
+            window.AndroidBridge.triggerNativeSignOut();
+        }
+        await signOut();
+        // After signOut, the auth hook will redirect to /login, and the user can sign in again.
+    };
+    
     const renderContent = () => {
         if (signInState === 'loading' || (loading && user && signInState !== 'unregistered')) {
             return (

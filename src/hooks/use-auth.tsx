@@ -47,6 +47,7 @@ declare global {
     signOutFromAndroid?: () => void;
     AndroidBridge?: {
         triggerGoogleSignIn: () => void;
+        triggerNativeSignOut: () => void;
     };
   }
 }
@@ -78,9 +79,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
-      // State updates will trigger through onAuthStateChanged
-      setCustomerData(null); // Explicitly clear local storage
-      router.push('/login'); // Redirect to login for a fresh start
+      // State updates will trigger through onAuthStateChanged, which handles state clearing.
+      // Redirecting ensures a clean start.
+      router.push('/login');
     } catch (error) {
       console.error("Error signing out", error);
        toast({
@@ -92,21 +93,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // This function must be added to your web app's code
     const signInFromAndroid = (googleIdToken: string) => {
       console.log("Attempting sign in from Android with token...");
-      // 1. Create a Firebase credential from the token
       const credential = GoogleAuthProvider.credential(googleIdToken);
       
-      // 2. Sign in with that credential
       signInWithCredential(auth, credential)
         .then(async (result) => {
-          // Sign-in successful!
           console.log("Signed in from Android!", result.user);
           await handleAuthSuccess(result.user);
         })
         .catch((error) => {
-          // Handle errors
           console.error("Android Sign-In Error", error);
           toast({
             variant: "destructive",
@@ -117,15 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const signOutFromAndroid = () => {
-        console.log("Signing out from Android bridge...");
+        console.log("Signing out via Android bridge...");
         signOut();
     };
     
-    // Expose the function to the window object for the WebView to call
     window.signInFromAndroid = signInFromAndroid;
     window.signOutFromAndroid = signOutFromAndroid;
 
-    // Cleanup function to remove it when the component unmounts
     return () => {
       delete window.signInFromAndroid;
       delete window.signOutFromAndroid;
@@ -137,17 +131,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUser(user);
-        // Check for cached customer data
         try {
           const cachedData = localStorage.getItem(CUSTOMER_DATA_STORAGE_KEY);
           if (cachedData) {
             const parsedData: CustomerData = JSON.parse(cachedData);
-            // Ensure cached data belongs to the current user
             if (parsedData.emailId === user.email || parsedData.google_email === user.email) {
               setCustomerDataState(parsedData);
               setCustomerStatus('verified');
             } else {
-              // Clear stale data if user is different
               localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);
             }
           }
@@ -213,7 +204,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               description: "An unexpected error occurred. Please try again.",
           });
       }
-      // Sign out to clean up the state if sign-in fails partway through
       await firebaseSignOut(auth);
       setUser(null);
       return 'error';
