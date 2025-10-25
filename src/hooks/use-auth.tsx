@@ -49,6 +49,7 @@ declare global {
   interface Window {
     signInFromAndroid?: (token: string) => void;
     signOutFromAndroid?: () => void;
+    receiveFCMToken?: (token: string) => void;
     AndroidBridge?: {
         triggerGoogleSignIn: () => void;
         triggerNativeSignOut: () => void;
@@ -113,8 +114,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const currentToken = await getToken(messaging, { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY });
         if (currentToken) {
           console.log('FCM Token:', currentToken);
-          // In a real app, you would send this token to your server to associate it with the user
-          // e.g., await saveTokenToServer(currentToken);
+          if (customerData) {
+            saveTokenToServer(currentToken, customerData.generatedCustomerId);
+          }
         } else {
           console.log('No registration token available. Request permission to generate one.');
         }
@@ -126,6 +128,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     return permission;
   }
+
+  const saveTokenToServer = async (token: string, customerId: string) => {
+    try {
+      await fetch('/api/save-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token, customerId }),
+      });
+      console.log('FCM token sent to server.');
+    } catch (error) {
+      console.error('Error sending FCM token to server:', error);
+    }
+  };
+
 
   useEffect(() => {
     const signInFromAndroid = (googleIdToken: string) => {
@@ -156,15 +174,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log("Signing out via Android bridge...");
         signOut();
     };
+
+    const receiveFCMToken = (token: string) => {
+        console.log("Received FCM Token from Android:", token);
+        if (customerData) {
+          saveTokenToServer(token, customerData.generatedCustomerId);
+        } else {
+          // If customerData is not ready, store it and wait.
+          const interval = setInterval(() => {
+            if (customerData) {
+              clearInterval(interval);
+              saveTokenToServer(token, customerData.generatedCustomerId);
+            }
+          }, 1000);
+        }
+    };
     
     window.signInFromAndroid = signInFromAndroid;
     window.signOutFromAndroid = signOutFromAndroid;
+    window.receiveFCMToken = receiveFCMToken;
+
 
     return () => {
       delete window.signInFromAndroid;
       delete window.signOutFromAndroid;
+      delete window.receiveFCMToken;
     };
-  }, [router, toast]);
+  }, [router, toast, customerData]);
 
 
   useEffect(() => {

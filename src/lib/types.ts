@@ -44,6 +44,7 @@ export interface CustomerData {
   customerCity: string;
   customerPhone: string;
   google_email?: string;
+  fcmToken?: string;
   
   aadhaarNo?: string;
   altMobileNo?: string;

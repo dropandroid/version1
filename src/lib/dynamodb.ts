@@ -39,6 +39,28 @@ export const getCustomerByEmail = async (email: string): Promise<CustomerData | 
   }
 }
 
+export const saveFcmToken = async (customerId: string, token: string): Promise<boolean> => {
+  const command = new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: {
+      generatedCustomerId: customerId,
+    },
+    UpdateExpression: "set fcmToken = :token",
+    ExpressionAttributeValues: {
+      ":token": token,
+    },
+  });
+
+  try {
+    await docClient.send(command);
+    console.log(`FCM token saved for customer ${customerId}`);
+    return true;
+  } catch (error) {
+    console.error("Error saving FCM token in DynamoDB:", error);
+    return false;
+  }
+};
+
 
 export const verifyCustomerPin = async (customerId: string, pin: string, googleEmail: string): Promise<CustomerData | null> => {
   try {
