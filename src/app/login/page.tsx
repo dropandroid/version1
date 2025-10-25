@@ -92,7 +92,7 @@ export default function LoginPage() {
                 <div className="bg-card p-6 rounded-lg shadow-md border">
                     <h3 className="text-lg font-semibold text-foreground mb-2">Email Not Found</h3>
                     <p className="text-muted-foreground mb-4 text-sm">
-                        The email <span className="font-semibold text-primary">{user?.email}</span> is not associated with an existing account.
+                        The email <span className="font-semibold text-primary">{auth.currentUser?.email}</span> is not associated with an existing account.
                     </p>
                     <div className="space-y-3">
                         <Button size="lg" className="w-full" onClick={handleBuyPlanClick}>

@@ -60,6 +60,8 @@ declare global {
   }
 }
 
+let pendingToken: string | null = null;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,6 +102,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const saveTokenToServer = async (token: string, customerId: string) => {
+    try {
+      await fetch('/api/save-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token, customerId }),
+      });
+      console.log('FCM token sent to server.');
+    } catch (error) {
+      console.error('Error sending FCM token to server:', error);
+    }
+  };
+
   const requestNotificationPermission = async (): Promise<NotificationPermission | 'unsupported'> => {
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         console.warn('Push notifications not supported in this browser.');
@@ -128,22 +145,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     return permission;
   }
-
-  const saveTokenToServer = async (token: string, customerId: string) => {
-    try {
-      await fetch('/api/save-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token, customerId }),
-      });
-      console.log('FCM token sent to server.');
-    } catch (error) {
-      console.error('Error sending FCM token to server:', error);
-    }
-  };
-
 
   useEffect(() => {
     const signInFromAndroid = (googleIdToken: string) => {
@@ -177,16 +178,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const receiveFCMToken = (token: string) => {
         console.log("Received FCM Token from Android:", token);
-        if (customerData) {
+        if (customerData?.generatedCustomerId) {
           saveTokenToServer(token, customerData.generatedCustomerId);
         } else {
-          // If customerData is not ready, store it and wait.
-          const interval = setInterval(() => {
-            if (customerData) {
-              clearInterval(interval);
-              saveTokenToServer(token, customerData.generatedCustomerId);
-            }
-          }, 1000);
+          console.log("Customer data not ready, holding token.");
+          pendingToken = token;
         }
     };
     
@@ -260,6 +256,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data) {
       try {
         localStorage.setItem(CUSTOMER_DATA_STORAGE_KEY, JSON.stringify(data));
+        if (pendingToken && data.generatedCustomerId) {
+          console.log("Customer data is now set. Saving pending token.");
+          saveTokenToServer(pendingToken, data.generatedCustomerId);
+          pendingToken = null; // Clear the token
+        }
       } catch (e) {
         console.error("Failed to save customer data to localStorage", e);
       }
@@ -306,14 +307,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return 'error';
     }
   };
-
-  const handleHybridSignOut = async () => {
-    if (window.AndroidBridge && typeof window.AndroidBridge.triggerNativeSignOut === 'function') {
-        window.AndroidBridge.triggerNativeSignOut();
-    }
-    await signOut(); 
-  };
-
 
   return (
     <AuthContext.Provider value={{ user, auth, loading, customerStatus, customerData, setCustomerStatus, setCustomerData, signInWithGoogle, signOut, requestNotificationPermission }}>
