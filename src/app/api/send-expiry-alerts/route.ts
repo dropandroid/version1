@@ -17,6 +17,7 @@ if (!admin.apps.length) {
                 privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
             }),
         });
+        console.log('Firebase Admin SDK initialized successfully.');
     } catch (e) {
         console.error('Firebase admin initialization error', e);
     }
@@ -36,13 +37,16 @@ const TABLE_NAME = "droppurity-customers";
 const EXPIRY_THRESHOLD_DAYS = 3;
 
 export async function GET() {
+  console.log('Starting expiry alert check...');
   try {
     const scanCommand = new ScanCommand({ TableName: TABLE_NAME });
     const { Items } = await docClient.send(scanCommand);
 
     if (!Items) {
+      console.log('No customers found in DynamoDB.');
       return NextResponse.json({ message: 'No customers found.' });
     }
+    console.log(`Found ${Items.length} customers to check.`);
 
     const customers = Items as CustomerData[];
     const notificationPromises: Promise<any>[] = [];
@@ -63,15 +67,21 @@ export async function GET() {
             token: customer.fcmToken,
           };
           
-          console.log(`Sending notification to ${customer.generatedCustomerId}`);
+          console.log(`[+] Found expiring plan for ${customer.generatedCustomerId}. Sending notification.`);
           notificationPromises.push(admin.messaging().send(message));
         }
       }
     });
 
+    if (notificationPromises.length === 0) {
+        console.log('No plans found expiring within the threshold.');
+    }
+
     const results = await Promise.allSettled(notificationPromises);
     const successCount = results.filter(r => r.status === 'fulfilled').length;
     const failedCount = results.length - successCount;
+    
+    console.log(`Expiry alert check complete. Sent: ${successCount}, Failed: ${failedCount}`);
 
     return NextResponse.json({ 
         message: 'Expiry alert check complete.',
