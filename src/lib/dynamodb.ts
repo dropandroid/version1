@@ -1,6 +1,12 @@
+
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, UpdateCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
-import type { CustomerData } from '@/lib/types';
+import {
+  DynamoDBDocumentClient,
+  QueryCommand,
+  UpdateCommand,
+  GetCommand
+} from "@aws-sdk/lib-dynamodb";
+import type { CustomerData } from "./types";
 
 const client = new DynamoDBClient({
   region: process.env.DROPPURITY_AWS_REGION,
@@ -14,109 +20,105 @@ const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = "droppurity-customers";
 
 export const getCustomerByEmail = async (email: string): Promise<CustomerData | null> => {
-  try {
-    const command = new ScanCommand({
-      TableName: TABLE_NAME,
-      FilterExpression: "emailId = :email",
-      ExpressionAttributeValues: {
-        ":email": email,
-      },
-    });
-
-    const { Items } = await docClient.send(command);
-
-    if (Items && Items.length > 0) {
-      console.log(`Found customer for email ${email}`);
-      return Items[0] as CustomerData;
-    } else {
-      console.log(`No customer found for email ${email}`);
-      return null;
-    }
-  } catch (error) {
-    console.error("Error scanning for customer by email:", error);
-    // This could fail if the table doesn't have a GSI on email, but we proceed.
-    return null;
-  }
-}
-
-export const saveFcmToken = async (customerId: string, token: string): Promise<boolean> => {
-  const command = new UpdateCommand({
+  const command = new QueryCommand({
     TableName: TABLE_NAME,
-    Key: {
-      generatedCustomerId: customerId,
-    },
-    UpdateExpression: "set fcmToken = :token",
-    ExpressionAttributeValues: {
-      ":token": token,
-    },
+    IndexName: 'emailId-index', // Assuming you have a GSI on emailId
+    KeyConditionExpression: 'emailId = :email',
+    ExpressionAttributeValues: { ':email': email },
   });
 
   try {
-    await docClient.send(command);
-    console.log(`FCM token saved for customer ${customerId}`);
-    return true;
+    const { Items } = await docClient.send(command);
+    if (Items && Items.length > 0) {
+      // Also check google_email as a fallback
+      return Items[0] as CustomerData;
+    }
+    
+    // Fallback query on google_email if you have an index for it
+    const googleEmailCommand = new QueryCommand({
+        TableName: TABLE_NAME,
+        IndexName: 'google_email-index', // Assuming you have a GSI on google_email
+        KeyConditionExpression: 'google_email = :email',
+        ExpressionAttributeValues: { ':email': email },
+    });
+
+    const { Items: GoogleItems } = await docClient.send(googleEmailCommand);
+    if(GoogleItems && GoogleItems.length > 0) {
+        return GoogleItems[0] as CustomerData;
+    }
+    
+    return null;
+
   } catch (error) {
-    console.error("Error saving FCM token in DynamoDB:", error);
-    return false;
+    console.error("Error fetching customer by email:", error);
+    // If one index fails, it doesn't mean the other will.
+    // Consider how to handle partial failures if necessary.
+    try {
+        const googleEmailCommand = new QueryCommand({
+            TableName: TABLE_NAME,
+            IndexName: 'google_email-index', // Assuming you have a GSI on google_email
+            KeyConditionExpression: 'google_email = :email',
+            ExpressionAttributeValues: { ':email': email },
+        });
+        const { Items } = await docClient.send(googleEmailCommand);
+        return Items && Items.length > 0 ? (Items[0] as CustomerData) : null;
+    } catch (fallbackError) {
+         console.error("Error fetching customer by google_email (fallback):", fallbackError);
+         return null;
+    }
   }
 };
 
+export const verifyCustomerPin = async (customerId: string, pin: string, userEmail: string): Promise<CustomerData | null> => {
+    const getCommand = new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { generatedCustomerId: customerId },
+    });
+    
+    try {
+        const { Item } = await docClient.send(getCommand);
 
-export const verifyCustomerPin = async (customerId: string, pin: string, googleEmail: string): Promise<CustomerData | null> => {
-  try {
-    const command = new GetCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        generatedCustomerId: customerId,
-      },
+        if (Item && Item.customerPhone && (Item.customerPhone.slice(-4) === pin)) {
+            // PIN is correct, now associate the google_email
+            const updateCommand = new UpdateCommand({
+                TableName: TABLE_NAME,
+                Key: { generatedCustomerId: customerId },
+                UpdateExpression: "set google_email = :email, planStatus = :status",
+                ExpressionAttributeValues: {
+                    ":email": userEmail,
+                    ":status": "active"
+                },
+                ReturnValues: "ALL_NEW",
+            });
+            const { Attributes } = await docClient.send(updateCommand);
+            return Attributes as CustomerData;
+        }
+        return null; // PIN is incorrect or customer not found
+    } catch (error) {
+        console.error("Error verifying customer PIN:", error);
+        throw new Error("Could not verify customer identity.");
+    }
+};
+
+export const saveFcmToken = async (customerId: string, token: string): Promise<boolean> => {
+    console.log(`Attempting to save token for customerId: ${customerId}`);
+    const command = new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+            generatedCustomerId: customerId,
+        },
+        UpdateExpression: 'SET fcmToken = :token',
+        ExpressionAttributeValues: {
+            ':token': token,
+        },
     });
 
-    const { Item } = await docClient.send(command);
-
-    if (!Item) {
-      console.log("Customer not found");
-      return null;
+    try {
+        await docClient.send(command);
+        console.log(`Successfully updated fcmToken for ${customerId}`);
+        return true;
+    } catch (error) {
+        console.error(`DynamoDB Error saving fcmToken for ${customerId}:`, error);
+        return false;
     }
-
-    const storedMobile = Item.customerPhone as string;
-    if (!storedMobile || storedMobile.length < 4) {
-        console.log("Mobile number not found or too short for customer");
-        return null;
-    }
-    const expectedPin = storedMobile.slice(-4);
-    
-    // Also allow verification if the user has already linked their email.
-    const isAlreadyLinked = Item.google_email === googleEmail;
-
-    if (pin === expectedPin || isAlreadyLinked) {
-      if (!isAlreadyLinked) {
-          const updateCommand = new UpdateCommand({
-            TableName: TABLE_NAME,
-            Key: {
-              generatedCustomerId: customerId,
-            },
-            UpdateExpression: "set google_email = :email",
-            ExpressionAttributeValues: {
-              ":email": googleEmail,
-            },
-            ReturnValues: "ALL_NEW",
-          });
-          const { Attributes } = await docClient.send(updateCommand);
-          console.log("Customer verified and email linked.");
-          return Attributes as CustomerData;
-      }
-      console.log("Customer already verified and linked.");
-      return Item as CustomerData;
-    } else {
-      console.log("Incorrect PIN");
-      return null;
-    }
-  } catch (error) {
-    console.error("Error verifying customer in DynamoDB:", error);
-    // This will catch ResourceNotFoundException if the table is wrong.
-    if ((error as Error).name === 'ResourceNotFoundException') {
-        throw new Error(`The specified table '${TABLE_NAME}' was not found in your AWS region. Please check the table name and region configuration.`);
-    }
-    return null;
-  }
 };

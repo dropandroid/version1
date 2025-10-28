@@ -21,7 +21,7 @@ import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { auth, app } from "@/lib/firebase";
 import { useRouter, usePathname } from "next/navigation";
 import type { CustomerData } from '@/lib/types';
-import { getCustomerByEmail } from "@/lib/dynamodb";
+import { getCustomerByEmail, saveFcmToken } from "@/lib/dynamodb";
 import { useToast } from "@/hooks/use-toast";
 
 type CustomerVerificationStatus = 'unverified' | 'verified';
@@ -102,21 +102,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const saveTokenToServer = async (token: string, customerId: string) => {
-    try {
-      await fetch('/api/save-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token, customerId }),
-      });
-      console.log('FCM token sent to server.');
-    } catch (error) {
-      console.error('Error sending FCM token to server:', error);
-    }
-  };
-
   const requestNotificationPermission = async (): Promise<NotificationPermission | 'unsupported'> => {
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         console.warn('Push notifications not supported in this browser.');
@@ -132,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (currentToken) {
           console.log('FCM Token:', currentToken);
           if (customerData) {
-            saveTokenToServer(currentToken, customerData.generatedCustomerId);
+            saveFcmToken(customerData.generatedCustomerId, currentToken);
           }
         } else {
           console.log('No registration token available. Request permission to generate one.');
@@ -177,11 +162,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const receiveFCMToken = (token: string) => {
-        console.log("Received FCM Token from Android:", token);
+        console.log("AuthProvider received FCM Token from Android:", token);
         if (customerData?.generatedCustomerId) {
-          saveTokenToServer(token, customerData.generatedCustomerId);
+          console.log(`Customer data is ready. Immediately saving token for ${customerData.generatedCustomerId}.`);
+          saveFcmToken(customerData.generatedCustomerId, token);
         } else {
-          console.log("Customer data not ready, holding token.");
+          console.log("Customer data not yet available. Holding token.");
           pendingToken = token;
         }
     };
@@ -196,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       delete window.signOutFromAndroid;
       delete window.receiveFCMToken;
     };
-  }, [router, toast, customerData]);
+  }, [customerData, router, toast]);
 
 
   useEffect(() => {
@@ -257,8 +243,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         localStorage.setItem(CUSTOMER_DATA_STORAGE_KEY, JSON.stringify(data));
         if (pendingToken && data.generatedCustomerId) {
-          console.log("Customer data is now set. Saving pending token.");
-          saveTokenToServer(pendingToken, data.generatedCustomerId);
+          console.log(`Customer data is now set. Saving pending token for ${data.generatedCustomerId}.`);
+          saveFcmToken(pendingToken, data.generatedCustomerId);
           pendingToken = null; // Clear the token
         }
       } catch (e) {
