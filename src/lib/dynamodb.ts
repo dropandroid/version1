@@ -4,7 +4,8 @@ import {
   DynamoDBDocumentClient,
   QueryCommand,
   UpdateCommand,
-  GetCommand
+  GetCommand,
+  ScanCommand
 } from "@aws-sdk/lib-dynamodb";
 import type { CustomerData } from "./types";
 
@@ -20,52 +21,23 @@ const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = "droppurity-customers";
 
 export const getCustomerByEmail = async (email: string): Promise<CustomerData | null> => {
-  const command = new QueryCommand({
+  // A Scan is less efficient than a Query, but it works without needing a pre-configured index.
+  // This is a robust way to find the user by email if indexes are not guaranteed to exist.
+  const command = new ScanCommand({
     TableName: TABLE_NAME,
-    IndexName: 'emailId-index', // Assuming you have a GSI on emailId
-    KeyConditionExpression: 'emailId = :email',
+    FilterExpression: 'emailId = :email or google_email = :email',
     ExpressionAttributeValues: { ':email': email },
   });
 
   try {
     const { Items } = await docClient.send(command);
     if (Items && Items.length > 0) {
-      // Also check google_email as a fallback
       return Items[0] as CustomerData;
     }
-    
-    // Fallback query on google_email if you have an index for it
-    const googleEmailCommand = new QueryCommand({
-        TableName: TABLE_NAME,
-        IndexName: 'google_email-index', // Assuming you have a GSI on google_email
-        KeyConditionExpression: 'google_email = :email',
-        ExpressionAttributeValues: { ':email': email },
-    });
-
-    const { Items: GoogleItems } = await docClient.send(googleEmailCommand);
-    if(GoogleItems && GoogleItems.length > 0) {
-        return GoogleItems[0] as CustomerData;
-    }
-    
     return null;
-
   } catch (error) {
-    console.error("Error fetching customer by email:", error);
-    // If one index fails, it doesn't mean the other will.
-    // Consider how to handle partial failures if necessary.
-    try {
-        const googleEmailCommand = new QueryCommand({
-            TableName: TABLE_NAME,
-            IndexName: 'google_email-index', // Assuming you have a GSI on google_email
-            KeyConditionExpression: 'google_email = :email',
-            ExpressionAttributeValues: { ':email': email },
-        });
-        const { Items } = await docClient.send(googleEmailCommand);
-        return Items && Items.length > 0 ? (Items[0] as CustomerData) : null;
-    } catch (fallbackError) {
-         console.error("Error fetching customer by google_email (fallback):", fallbackError);
-         return null;
-    }
+    console.error("Error fetching customer by email with Scan:", error);
+    throw new Error("Could not search for customer by email.");
   }
 };
 
