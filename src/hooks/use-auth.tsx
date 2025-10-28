@@ -23,6 +23,7 @@ import { useRouter, usePathname } from "next/navigation";
 import type { CustomerData } from '@/lib/types';
 import { getCustomerByEmail, saveFcmToken } from "@/lib/dynamodb";
 import { useToast } from "@/hooks/use-toast";
+import '@/lib/fcm-listener'; // Import to run the listener code
 
 type CustomerVerificationStatus = 'unverified' | 'verified';
 type SignInResult = 'success' | 'unregistered' | 'error';
@@ -49,7 +50,6 @@ declare global {
   interface Window {
     signInFromAndroid?: (token: string) => void;
     signOutFromAndroid?: () => void;
-    receiveFCMToken?: (token: string) => void;
     AndroidBridge?: {
         triggerGoogleSignIn: () => void;
         triggerNativeSignOut: () => void;
@@ -89,8 +89,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
-      // State updates will trigger through onAuthStateChanged, which handles state clearing.
-      // Redirecting ensures a clean start.
       router.push('/login');
     } catch (error) {
       console.error("Error signing out", error);
@@ -114,13 +112,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const messaging = getMessaging(app);
         const currentToken = await getToken(messaging, { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY });
-        if (currentToken) {
+        if (currentToken && customerData) {
           console.log('FCM Token:', currentToken);
-          if (customerData) {
-            saveFcmToken(customerData.generatedCustomerId, currentToken);
-          }
+          await saveFcmToken(customerData.generatedCustomerId, currentToken);
         } else {
-          console.log('No registration token available. Request permission to generate one.');
+          console.log('No registration token available or customer data not ready.');
         }
       } catch (err) {
         console.error('An error occurred while retrieving token. ', err);
@@ -130,6 +126,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     return permission;
   }
+  
+  useEffect(() => {
+    const handleTokenReceived = (event: Event) => {
+        const token = (event as CustomEvent<string>).detail;
+        if (token) {
+            console.log("AuthProvider caught fcmTokenReceived event with token.");
+            if (customerData?.generatedCustomerId) {
+                console.log(`Customer data is ready. Immediately saving token for ${customerData.generatedCustomerId}.`);
+                saveFcmToken(customerData.generatedCustomerId, token);
+            } else {
+                console.log("Customer data not yet available. Holding token.");
+                pendingToken = token;
+            }
+        }
+    };
+
+    window.addEventListener('fcmTokenReceived', handleTokenReceived);
+
+    return () => {
+        window.removeEventListener('fcmTokenReceived', handleTokenReceived);
+    };
+}, [customerData]);
+
 
   useEffect(() => {
     const signInFromAndroid = (googleIdToken: string) => {
@@ -161,28 +180,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut();
     };
 
-    const receiveFCMToken = (token: string) => {
-        console.log("AuthProvider received FCM Token from Android:", token);
-        if (customerData?.generatedCustomerId) {
-          console.log(`Customer data is ready. Immediately saving token for ${customerData.generatedCustomerId}.`);
-          saveFcmToken(customerData.generatedCustomerId, token);
-        } else {
-          console.log("Customer data not yet available. Holding token.");
-          pendingToken = token;
-        }
-    };
-    
     window.signInFromAndroid = signInFromAndroid;
     window.signOutFromAndroid = signOutFromAndroid;
-    window.receiveFCMToken = receiveFCMToken;
-
 
     return () => {
       delete window.signInFromAndroid;
       delete window.signOutFromAndroid;
-      delete window.receiveFCMToken;
     };
-  }, [customerData, router, toast]);
+  }, [router, toast]);
 
 
   useEffect(() => {
@@ -234,7 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
         });
      }
-  }, []);
+  }, [toast]);
 
 
   const setCustomerData = (data: CustomerData | null) => {
@@ -244,7 +249,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(CUSTOMER_DATA_STORAGE_KEY, JSON.stringify(data));
         if (pendingToken && data.generatedCustomerId) {
           console.log(`Customer data is now set. Saving pending token for ${data.generatedCustomerId}.`);
-          saveFcmToken(pendingToken, data.generatedCustomerId);
+          saveFcmToken(data.generatedCustomerId, pendingToken);
           pendingToken = null; // Clear the token
         }
       } catch (e) {
