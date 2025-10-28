@@ -20,6 +20,7 @@ export async function POST(request: Request) {
     }
     
     console.log(`Received API call to save token for customer ${customerId}`);
+    // Use the existing saveFcmToken function which correctly uses 'generatedCustomerId' as the key
     const success = await saveFcmToken(customerId, fcmToken);
 
     if (success) {
