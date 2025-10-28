@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const saveTokenToDb = async (customerId: string, token: string) => {
-    console.log(`[Auth Hook] Calling API to save token for customer ${customerId}`);
+    console.log(`✅ [Step 4: The Database] Attempting to save token for customerId: ${customerId}`);
     try {
       const response = await fetch('/api/save-token', {
         method: 'POST',
@@ -232,8 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (cachedData) {
             const parsedData: CustomerData = JSON.parse(cachedData);
             if (parsedData.emailId === user.email || parsedData.google_email === user.email) {
-              setCustomerDataState(parsedData);
-              setCustomerStatus('verified');
+              setCustomerData(parsedData); // Use the new setCustomerData function
             } else {
               localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);
             }
@@ -245,7 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setUser(null);
         setCustomerStatus('unverified');
-        setCustomerDataState(null);
+        setCustomerData(null); // Use the new setCustomerData function
         localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);
       }
       setLoading(false);
@@ -274,12 +273,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      }
   }, [toast]);
 
-
+  // This is the corrected function
   const setCustomerData = (data: CustomerData | null) => {
     setCustomerDataState(data);
     if (data) {
         try {
             localStorage.setItem(CUSTOMER_DATA_STORAGE_KEY, JSON.stringify(data));
+            // --- FIX IS HERE ---
+            // Check for a pending token *after* customer data is set
             console.log("[Auth Hook] Customer data set. Checking for pending token.");
             if (pendingToken && data.generatedCustomerId) {
                 console.log(`[Auth Hook] Pending token found. Saving token now for ${data.generatedCustomerId}.`);
@@ -347,3 +348,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+    
