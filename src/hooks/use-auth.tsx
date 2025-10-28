@@ -50,7 +50,7 @@ declare global {
     signInFromAndroid?: (token: string) => void;
     signOutFromAndroid?: () => void;
     AndroidBridge?: {
-        requestFCMToken: () => void; // Added based on user's code
+        requestFCMToken: () => void;
         triggerGoogleSignIn: () => void;
         triggerNativeSignOut: () => void;
         onEmailNotFound: (email: string) => void;
@@ -87,17 +87,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const saveTokenToDb = async (token: string, customerId: string) => {
-    console.log(`AuthProvider: Saving FCM token for customer ${customerId}`);
+    console.log(`[AuthProvider] Calling API to save token for customer ${customerId}`);
     try {
-      await saveFcmToken(customerId, token);
-      console.log("AuthProvider: FCM Token save call finished.");
+      const response = await fetch('/api/save-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: customerId, token: token })
+      });
+      if (!response.ok) {
+        throw new Error(`API call failed with status: ${response.status}`);
+      }
+      console.log("[AuthProvider] API call to save token finished successfully.");
     } catch (error) {
-      console.error("AuthProvider: Error saving FCM token:", error);
+      console.error("[AuthProvider] Error calling /api/save-token:", error);
     }
   };
+  
 
   useEffect(() => {
-    if (window.AndroidBridge && typeof window.AndroidBridge.requestFCMToken === 'function') {
+    if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.requestFCMToken === 'function') {
       console.log("AuthProvider: Ready! Requesting FCM token from Android...");
       window.AndroidBridge.requestFCMToken();
     } else {
@@ -148,17 +156,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   useEffect(() => {
     const handleTokenReceived = (event: Event) => {
-      const token = (event as CustomEvent<string>).detail;
-      if (token) {
-        console.log("AuthProvider caught fcmTokenReceived event with token.");
-        if (customerData?.generatedCustomerId) {
-          console.log(`Customer data is ready. Immediately saving token for ${customerData.generatedCustomerId}.`);
-          saveTokenToDb(token, customerData.generatedCustomerId);
+        const token = (event as CustomEvent<string>).detail;
+        console.log("[AuthProvider] 'fcmTokenReceived' event caught in hook with token:", token ? `${token.substring(0, 15)}...` : 'null');
+        if (token) {
+            if (customerData?.generatedCustomerId) {
+                console.log(`[AuthProvider] Customer data is ready. Immediately saving token for ${customerData.generatedCustomerId}.`);
+                saveTokenToDb(token, customerData.generatedCustomerId);
+            } else {
+                console.log("[AuthProvider] Customer data not yet available. Holding token.");
+                pendingToken = token;
+            }
         } else {
-          console.log("Customer data not yet available. Holding token.");
-          pendingToken = token;
+            console.warn("[AuthProvider] fcmTokenReceived event dispatched with a null or empty token.");
         }
-      }
     };
     window.addEventListener('fcmTokenReceived', handleTokenReceived);
 
@@ -263,20 +273,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setCustomerData = (data: CustomerData | null) => {
     setCustomerDataState(data);
     if (data) {
-      try {
-        localStorage.setItem(CUSTOMER_DATA_STORAGE_KEY, JSON.stringify(data));
-        if (pendingToken && data.generatedCustomerId) {
-          console.log(`Customer data is now set. Saving pending token for ${data.generatedCustomerId}.`);
-          saveTokenToDb(data.generatedCustomerId, pendingToken);
-          pendingToken = null; // Clear the token
+        try {
+            localStorage.setItem(CUSTOMER_DATA_STORAGE_KEY, JSON.stringify(data));
+            console.log("[AuthProvider] Customer data set. Checking for pending token.");
+            if (pendingToken && data.generatedCustomerId) {
+                console.log(`[AuthProvider] Pending token found. Saving token for ${data.generatedCustomerId}.`);
+                saveTokenToDb(data.generatedCustomerId, pendingToken);
+                pendingToken = null; // Important: Clear the token after use
+            }
+        } catch (e) {
+            console.error("[AuthProvider] Failed to save customer data to localStorage", e);
         }
-      } catch (e) {
-        console.error("Failed to save customer data to localStorage", e);
-      }
     } else {
-      localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);
+        localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);
     }
-  };
+};
 
 
    useEffect(() => {
