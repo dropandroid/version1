@@ -153,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log("AuthProvider caught fcmTokenReceived event with token.");
         if (customerData?.generatedCustomerId) {
           console.log(`Customer data is ready. Immediately saving token for ${customerData.generatedCustomerId}.`);
-          saveTokenToDb(customerData.generatedCustomerId, token);
+          saveTokenToDb(token, customerData.generatedCustomerId);
         } else {
           console.log("Customer data not yet available. Holding token.");
           pendingToken = token;
