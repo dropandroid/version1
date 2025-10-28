@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      }
   };
 
-  const saveTokenToDb = async (token: string, customerId: string) => {
+  const saveTokenToDb = async (customerId: string, token: string) => {
     console.log(`[Auth Hook] Calling API to save token for customer ${customerId}`);
     try {
       const response = await fetch('/api/save-token', {
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (currentToken && customerData) {
           console.log('FCM Token:', currentToken);
           setFcmToken(currentToken); // Also set to state for display
-          await saveFcmToken(customerData.generatedCustomerId, currentToken);
+          await saveTokenToDb(customerData.generatedCustomerId, currentToken);
         } else {
           console.log('No registration token available or customer data not ready.');
         }
@@ -166,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setFcmToken(token); // Set the token to state for display
             if (customerData?.generatedCustomerId) {
                 console.log(`[Auth Hook] Customer data is ready. Immediately saving token for ${customerData.generatedCustomerId}.`);
-                saveTokenToDb(token, customerData.generatedCustomerId);
+                saveTokenToDb(customerData.generatedCustomerId, token);
             } else {
                 console.log("[Auth Hook] Customer data not yet available. Holding token.");
                 pendingToken = token;
