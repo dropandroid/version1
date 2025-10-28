@@ -41,6 +41,22 @@ export const getCustomerByEmail = async (email: string): Promise<CustomerData | 
   }
 };
 
+export const getCustomerById = async (customerId: string): Promise<CustomerData | null> => {
+  const command = new GetCommand({
+    TableName: TABLE_NAME,
+    Key: { generatedCustomerId: customerId },
+  });
+
+  try {
+    const { Item } = await docClient.send(command);
+    return (Item as CustomerData) || null;
+  } catch (error) {
+    console.error(`Error fetching customer by ID ${customerId}:`, error);
+    throw new Error("Could not fetch customer by ID.");
+  }
+};
+
+
 export const verifyCustomerPin = async (customerId: string, pin: string, userEmail: string): Promise<CustomerData | null> => {
     const getCommand = new GetCommand({
         TableName: TABLE_NAME,
