@@ -21,8 +21,7 @@ const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = "droppurity-customers";
 
 export const getCustomerByEmail = async (email: string): Promise<CustomerData | null> => {
-  // A Scan is less efficient than a Query, but it works without needing a pre-configured index.
-  // This is a robust way to find the user by email if indexes are not guaranteed to exist.
+  console.log(`[DB] Searching for customer with email: ${email}`);
   const command = new ScanCommand({
     TableName: TABLE_NAME,
     FilterExpression: 'emailId = :email or google_email = :email',
@@ -32,11 +31,13 @@ export const getCustomerByEmail = async (email: string): Promise<CustomerData | 
   try {
     const { Items } = await docClient.send(command);
     if (Items && Items.length > 0) {
+      console.log(`[DB] Found customer for email ${email}`);
       return Items[0] as CustomerData;
     }
+    console.log(`[DB] No customer found for email ${email}`);
     return null;
   } catch (error) {
-    console.error("Error fetching customer by email with Scan:", error);
+    console.error("[DB Error] Error fetching customer by email with Scan:", error);
     throw new Error("Could not search for customer by email.");
   }
 };
@@ -49,9 +50,14 @@ export const getCustomerById = async (customerId: string): Promise<CustomerData 
 
   try {
     const { Item } = await docClient.send(command);
+    if (Item) {
+        console.log(`[DB] Found customer for ID ${customerId}`);
+    } else {
+        console.log(`[DB] No customer found for ID ${customerId}`);
+    }
     return (Item as CustomerData) || null;
   } catch (error) {
-    console.error(`Error fetching customer by ID ${customerId}:`, error);
+    console.error(`[DB Error] Error fetching customer by ID ${customerId}:`, error);
     throw new Error("Could not fetch customer by ID.");
   }
 };
@@ -67,7 +73,7 @@ export const verifyCustomerPin = async (customerId: string, pin: string, userEma
         const { Item } = await docClient.send(getCommand);
 
         if (Item && Item.customerPhone && (Item.customerPhone.slice(-4) === pin)) {
-            // PIN is correct, now associate the google_email
+            console.log(`[DB] PIN verified for ${customerId}. Associating email ${userEmail}.`);
             const updateCommand = new UpdateCommand({
                 TableName: TABLE_NAME,
                 Key: { generatedCustomerId: customerId },
@@ -81,9 +87,10 @@ export const verifyCustomerPin = async (customerId: string, pin: string, userEma
             const { Attributes } = await docClient.send(updateCommand);
             return Attributes as CustomerData;
         }
+        console.log(`[DB] PIN verification failed for ${customerId}.`);
         return null; // PIN is incorrect or customer not found
     } catch (error) {
-        console.error("Error verifying customer PIN:", error);
+        console.error("[DB Error] Error verifying customer PIN:", error);
         throw new Error("Could not verify customer identity.");
     }
 };

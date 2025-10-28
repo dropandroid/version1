@@ -5,17 +5,20 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import * as admin from 'firebase-admin';
 import type { CustomerData } from '@/lib/types';
+import { getCustomerById } from '@/lib/dynamodb'; // Re-using our existing function
 
 // Initialize Firebase Admin SDK
-// Ensure you have your service account key file in your project
-// and the GOOGLE_APPLICATION_CREDENTIALS environment variable set.
 if (!admin.apps.length) {
     try {
+        const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+        if (!privateKey) {
+            throw new Error("FIREBASE_PRIVATE_KEY is not set.");
+        }
         admin.initializeApp({
             credential: admin.credential.cert({
                 projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
                 clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-                privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+                privateKey: privateKey,
             }),
         });
         console.log('Firebase Admin SDK initialized successfully.');
@@ -38,27 +41,33 @@ const TABLE_NAME = "droppurity-customers";
 const EXPIRY_THRESHOLD_DAYS = 3;
 
 export async function GET() {
-  console.log('Starting expiry alert check...');
+  console.log('[CRON] Starting expiry alert check...');
   try {
-    const scanCommand = new ScanCommand({ TableName: TABLE_NAME });
+    const scanCommand = new ScanCommand({ 
+        TableName: TABLE_NAME,
+        // Only scan for items that have a plan end date.
+        FilterExpression: "attribute_exists(planEndDate)"
+    });
     const { Items } = await docClient.send(scanCommand);
 
-    if (!Items) {
-      console.log('No customers found in DynamoDB.');
-      return NextResponse.json({ message: 'No customers found.' });
+    if (!Items || Items.length === 0) {
+      console.log('[CRON] No customers with plan end dates found.');
+      return NextResponse.json({ message: 'No customers to check.' });
     }
-    console.log(`Found ${Items.length} customers to check.`);
+    console.log(`[CRON] Found ${Items.length} customers to check for expiry.`);
 
     const customers = Items as CustomerData[];
     const notificationPromises: Promise<any>[] = [];
     const today = new Date();
     
     customers.forEach(customer => {
-      if (customer.planEndDate && customer.fcmToken) {
+      // Ensure we have the necessary data to proceed
+      if (customer.planEndDate && customer.fcmToken && customer.generatedCustomerId) {
         const endDate = new Date(customer.planEndDate);
         const diffTime = endDate.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+        // Check if the plan is expiring within the threshold (and hasn't already expired)
         if (diffDays > 0 && diffDays <= EXPIRY_THRESHOLD_DAYS) {
           const message = {
             notification: {
@@ -68,30 +77,35 @@ export async function GET() {
             token: customer.fcmToken,
           };
           
-          console.log(`[+] Found expiring plan for ${customer.generatedCustomerId}. Sending notification.`);
+          console.log(`[CRON] Found expiring plan for ${customer.generatedCustomerId}. Queuing notification.`);
           notificationPromises.push(admin.messaging().send(message));
         }
       }
     });
 
     if (notificationPromises.length === 0) {
-        console.log('No plans found expiring within the threshold.');
+        console.log('[CRON] No plans found expiring within the threshold.');
+    } else {
+        const results = await Promise.allSettled(notificationPromises);
+        const successCount = results.filter(r => r.status === 'fulfilled').length;
+        const failedCount = results.length - successCount;
+        
+        console.log(`[CRON] Expiry alert check complete. Sent: ${successCount}, Failed: ${failedCount}`);
+
+        return NextResponse.json({ 
+            message: 'Expiry alert check complete.',
+            sent: successCount,
+            failed: failedCount,
+        });
     }
 
-    const results = await Promise.allSettled(notificationPromises);
-    const successCount = results.filter(r => r.status === 'fulfilled').length;
-    const failedCount = results.length - successCount;
-    
-    console.log(`Expiry alert check complete. Sent: ${successCount}, Failed: ${failedCount}`);
-
     return NextResponse.json({ 
-        message: 'Expiry alert check complete.',
-        sent: successCount,
-        failed: failedCount,
+        message: 'Expiry alert check ran, but no notifications were required to be sent.',
     });
 
   } catch (error) {
-    console.error('Error sending expiry alerts:', error);
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    console.error('[CRON] Error sending expiry alerts:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    return NextResponse.json({ message: 'Internal Server Error', error: errorMessage }, { status: 500 });
   }
 }
