@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Fingerprint, KeyRound, Mail, ShieldAlert, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { verifyCustomerPin, getCustomerByEmail } from '@/lib/dynamodb';
+import { getCustomerByEmail } from '@/lib/dynamodb';
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer ID is required"),
@@ -30,7 +30,7 @@ export default function VerifyCustomerPage() {
   const [isSuggesting, setIsSuggesting] = useState(true);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [delay, setDelay] = useState(0);
-  const { user, loading, setCustomerStatus, setCustomerData, signOut } = useAuth();
+  const { user, loading, signOut, verifyCustomerPin } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const countdownInterval = useRef<NodeJS.Timeout | null>(null);
@@ -110,26 +110,14 @@ export default function VerifyCustomerPage() {
   const onSubmit = async (values: VerificationFormValues) => {
     setIsLoading(true);
     
-    if (!user?.email) {
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "No user email found. Please sign in again.",
-        });
-        setIsLoading(false);
-        return;
-    }
-    
     try {
-      const customerData = await verifyCustomerPin(values.customerId, values.pin, user.email);
+      const customerData = await verifyCustomerPin(values.customerId, values.pin);
 
       if (customerData) {
         toast({
           title: 'Verification Successful!',
           description: 'Welcome to your AquaTrack dashboard.',
         });
-        setCustomerData(customerData);
-        setCustomerStatus('verified');
         setFailedAttempts(0);
         router.push('/');
       } else {

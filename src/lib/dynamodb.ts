@@ -63,7 +63,7 @@ export const getCustomerById = async (customerId: string): Promise<CustomerData 
 };
 
 
-export const verifyCustomerPin = async (customerId: string, pin: string, userEmail: string): Promise<CustomerData | null> => {
+export const verifyCustomerPin = async (customerId: string, pin: string, userEmail: string, fcmToken?: string | null): Promise<CustomerData | null> => {
     const getCommand = new GetCommand({
         TableName: TABLE_NAME,
         Key: { generatedCustomerId: customerId },
@@ -74,21 +74,31 @@ export const verifyCustomerPin = async (customerId: string, pin: string, userEma
 
         if (Item && Item.customerPhone && (Item.customerPhone.slice(-4) === pin)) {
             console.log(`[DB] PIN verified for ${customerId}. Associating email ${userEmail}.`);
+            
+            let updateExpression = "set google_email = :email, planStatus = :status";
+            const expressionAttributeValues: { [key: string]: any } = {
+                ":email": userEmail,
+                ":status": "active"
+            };
+
+            if (fcmToken) {
+                console.log(`[DB] FCM token provided. Adding to update for ${customerId}.`);
+                updateExpression += ", fcmToken = :token";
+                expressionAttributeValues[":token"] = fcmToken;
+            }
+
             const updateCommand = new UpdateCommand({
                 TableName: TABLE_NAME,
                 Key: { generatedCustomerId: customerId },
-                UpdateExpression: "set google_email = :email, planStatus = :status",
-                ExpressionAttributeValues: {
-                    ":email": userEmail,
-                    ":status": "active"
-                },
+                UpdateExpression: updateExpression,
+                ExpressionAttributeValues: expressionAttributeValues,
                 ReturnValues: "ALL_NEW",
             });
             const { Attributes } = await docClient.send(updateCommand);
             return Attributes as CustomerData;
         }
         console.log(`[DB] PIN verification failed for ${customerId}.`);
-        return null; // PIN is incorrect or customer not found
+        return null;
     } catch (error) {
         console.error("[DB Error] Error verifying customer PIN:", error);
         throw new Error("Could not verify customer identity.");

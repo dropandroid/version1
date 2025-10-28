@@ -21,7 +21,7 @@ import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { auth, app } from "@/lib/firebase";
 import { useRouter, usePathname } from "next/navigation";
 import type { CustomerData } from '@/lib/types';
-import { getCustomerByEmail, saveFcmToken } from "@/lib/dynamodb";
+import { getCustomerByEmail, saveFcmToken, verifyCustomerPin as dbVerifyCustomerPin } from "@/lib/dynamodb";
 import { useToast } from "@/hooks/use-toast";
 import '@/lib/fcm-listener'; // Import to run the listener code
 
@@ -34,12 +34,13 @@ interface AuthContextType {
   loading: boolean;
   customerStatus: CustomerVerificationStatus;
   customerData: CustomerData | null;
-  fcmToken: string | null; // New state for the token
+  fcmToken: string | null;
   setCustomerStatus: (status: CustomerVerificationStatus) => void;
   setCustomerData: (data: CustomerData | null) => void;
   signInWithGoogle: () => Promise<SignInResult>;
   signOut: () => Promise<void>;
   requestNotificationPermission: () => Promise<NotificationPermission | 'unsupported'>;
+  verifyCustomerPin: (customerId: string, pin: string) => Promise<CustomerData | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -67,12 +68,44 @@ let pendingToken: string | null = null;
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [customerStatus, setCustomerStatus] = useState<CustomerVerificationStatus>('unverified');
+  const [customerStatus, setCustomerStatusState] = useState<CustomerVerificationStatus>('unverified');
   const [customerData, setCustomerDataState] = useState<CustomerData | null>(null);
-  const [fcmToken, setFcmToken] = useState<string | null>(null); // New state
+  const [fcmToken, setFcmToken] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
+
+  const setCustomerStatus = (status: CustomerVerificationStatus) => {
+    setCustomerStatusState(status);
+    if (customerData) {
+        const updatedData = { ...customerData, _verificationStatus: status };
+        localStorage.setItem(CUSTOMER_DATA_STORAGE_KEY, JSON.stringify(updatedData));
+    }
+  };
+  
+  const setCustomerData = (data: CustomerData | null) => {
+      setCustomerDataState(data);
+      if (data) {
+          try {
+              // Add verification status to the cached object
+              const dataToCache = { ...data, _verificationStatus: 'verified' };
+              localStorage.setItem(CUSTOMER_DATA_STORAGE_KEY, JSON.stringify(dataToCache));
+              console.log("[Auth Hook] Customer data saved to localStorage.");
+
+              if (pendingToken && data.generatedCustomerId) {
+                  console.log(`[Auth Hook] Pending token found. Saving token now for ${data.generatedCustomerId}.`);
+                  saveTokenToDb(data.generatedCustomerId, pendingToken);
+                  pendingToken = null; 
+              }
+          } catch (e) {
+              console.error("[Auth Hook] Failed to save customer data to localStorage", e);
+          }
+      } else {
+          localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);
+          console.log("[Auth Hook] Customer data removed from localStorage.");
+      }
+  };
+  
 
   const handleAuthSuccess = async (user: User): Promise<SignInResult> => {
      const userEmail = user.email;
@@ -106,7 +139,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
   
-
   useEffect(() => {
     if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.requestFCMToken === 'function') {
       console.log("AuthProvider: Ready! Requesting FCM token from Android...");
@@ -119,6 +151,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
+      setCustomerData(null);
+      setCustomerStatus('unverified');
       router.push('/login');
     } catch (error) {
       console.error("Error signing out", error);
@@ -144,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const currentToken = await getToken(messaging, { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY });
         if (currentToken && customerData) {
           console.log('FCM Token:', currentToken);
-          setFcmToken(currentToken); // Also set to state for display
+          setFcmToken(currentToken);
           await saveTokenToDb(customerData.generatedCustomerId, currentToken);
         } else {
           console.log('No registration token available or customer data not ready.');
@@ -163,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const token = (event as CustomEvent<string>).detail;
         console.log("✅ [Step 2: The Catch] 'fcmTokenReceived' event caught in hook.");
         if (token) {
-            setFcmToken(token); // Set the token to state for display
+            setFcmToken(token);
             if (customerData?.generatedCustomerId) {
                 console.log(`[Auth Hook] Customer data is ready. Immediately saving token for ${customerData.generatedCustomerId}.`);
                 saveTokenToDb(customerData.generatedCustomerId, token);
@@ -228,11 +262,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user) {
         setUser(user);
         try {
-          const cachedData = localStorage.getItem(CUSTOMER_DATA_STORAGE_KEY);
-          if (cachedData) {
-            const parsedData: CustomerData = JSON.parse(cachedData);
+          const cachedDataString = localStorage.getItem(CUSTOMER_DATA_STORAGE_KEY);
+          if (cachedDataString) {
+            const parsedData = JSON.parse(cachedDataString);
             if (parsedData.emailId === user.email || parsedData.google_email === user.email) {
-              setCustomerData(parsedData); // Use the new setCustomerData function
+              setCustomerDataState(parsedData); 
+              setCustomerStatusState(parsedData._verificationStatus || 'unverified');
             } else {
               localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);
             }
@@ -243,8 +278,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setUser(null);
-        setCustomerStatus('unverified');
-        setCustomerData(null); // Use the new setCustomerData function
+        setCustomerStatusState('unverified');
+        setCustomerDataState(null);
         localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);
       }
       setLoading(false);
@@ -273,29 +308,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      }
   }, [toast]);
 
-  // This is the corrected function
-  const setCustomerData = (data: CustomerData | null) => {
-    setCustomerDataState(data);
-    if (data) {
-        try {
-            localStorage.setItem(CUSTOMER_DATA_STORAGE_KEY, JSON.stringify(data));
-            // --- FIX IS HERE ---
-            // Check for a pending token *after* customer data is set
-            console.log("[Auth Hook] Customer data set. Checking for pending token.");
-            if (pendingToken && data.generatedCustomerId) {
-                console.log(`[Auth Hook] Pending token found. Saving token now for ${data.generatedCustomerId}.`);
-                saveTokenToDb(data.generatedCustomerId, pendingToken);
-                pendingToken = null; // Important: Clear the token after use
-            }
-        } catch (e) {
-            console.error("[Auth Hook] Failed to save customer data to localStorage", e);
-        }
-    } else {
-        localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);
-    }
-};
-
-
    useEffect(() => {
     if (loading) return;
 
@@ -303,7 +315,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!user && !isAuthPage) {
       router.push('/login');
-    } else if (user && pathname === '/login' && customerStatus !== 'unverified') {
+    } else if (user && pathname === '/login' && customerStatus === 'verified') {
         router.push('/');
     } else if (user && customerStatus === 'unverified' && pathname !== '/verify-customer' && pathname !== '/login') {
       router.push('/verify-customer');
@@ -334,8 +346,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const verifyCustomerPin = async (customerId: string, pin: string): Promise<CustomerData | null> => {
+      if (!user?.email) {
+          console.error("verifyCustomerPin called without a user email.");
+          return null;
+      }
+      const data = await dbVerifyCustomerPin(customerId, pin, user.email, fcmToken);
+      if (data) {
+          setCustomerData(data);
+          setCustomerStatus('verified');
+      }
+      return data;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, auth, loading, customerStatus, customerData, fcmToken, setCustomerStatus, setCustomerData, signInWithGoogle, signOut, requestNotificationPermission }}>
+    <AuthContext.Provider value={{ user, auth, loading, customerStatus, customerData, fcmToken, setCustomerStatus, setCustomerData, signInWithGoogle, signOut, requestNotificationPermission, verifyCustomerPin }}>
       {children}
     </AuthContext.Provider>
   );
@@ -348,5 +373,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-    
