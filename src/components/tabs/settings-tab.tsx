@@ -3,9 +3,9 @@
 
 import type { FC } from 'react';
 import { useState } from 'react';
-import { Save, X, Bell, Hash } from 'lucide-react';
+import { Save, X, Bell } from 'lucide-react';
 import { useRoData } from '@/hooks/use-ro-data';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
@@ -17,10 +17,9 @@ type SettingsTabProps = ReturnType<typeof useRoData>;
 
 export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, settings, toggleSetting }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [isSavingToken, setIsSavingToken] = useState(false);
   const [tempLimit, setTempLimit] = useState(roDevice.dailyLimit);
   const { toast } = useToast();
-  const { customerData, requestNotificationPermission, fcmToken } = useAuth();
+  const { customerData, requestNotificationPermission } = useAuth();
 
 
   const handleSaveLimit = () => {
@@ -58,57 +57,6 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
     }
   };
 
-  const handleManualSaveToken = async () => {
-    console.log('[Manual Save] Starting token save process...');
-    if (!fcmToken) {
-        console.error('[Manual Save] No FCM token available to save.');
-        toast({ variant: 'destructive', title: 'Test Failed', description: 'No FCM token is currently available in the app.' });
-        return;
-    }
-    if (!customerData?.generatedCustomerId) {
-        console.error('[Manual Save] No Customer ID available.');
-        toast({ variant: 'destructive', title: 'Test Failed', description: 'Customer data (and ID) is not loaded.' });
-        return;
-    }
-
-    setIsSavingToken(true);
-    toast({ title: 'Testing...', description: `Sending token to backend for customer ${customerData.generatedCustomerId}.` });
-
-    try {
-        console.log(`[Manual Save] Calling /api/save-token...`);
-        const response = await fetch('/api/save-token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ customerId: customerData.generatedCustomerId, token: fcmToken })
-        });
-        
-        const result = await response.json();
-        console.log('[Manual Save] API Response:', result);
-
-        if (!response.ok) {
-            throw new Error(result.message || `API Error: ${response.status}`);
-        }
-
-        toast({
-            variant: 'default',
-            title: 'Test Successful!',
-            description: `API returned success. Token should be saved in DynamoDB.`,
-            className: "bg-green-500/20 border-green-500",
-        });
-
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        console.error('[Manual Save] Test failed:', errorMessage);
-        toast({
-            variant: 'destructive',
-            title: 'Test Failed',
-            description: `An error occurred: ${errorMessage}`,
-        });
-    } finally {
-        setIsSavingToken(false);
-    }
-  };
-
   const settingsOptions = [
     { key: 'usageAlerts', label: 'Usage Alerts' },
     { key: 'serviceReminders', label: 'Service Reminders' },
@@ -120,29 +68,6 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
   return (
     <div className="p-4 space-y-4">
       <h2 className="text-xl font-bold text-foreground">Settings & Service</h2>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">FCM Token</CardTitle>
-          <CardDescription>This is the token received from the native app for push notifications. For debugging only.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-2">
-            <Hash className="w-4 h-4 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground break-all">
-              {fcmToken || "No token received yet..."}
-            </p>
-          </div>
-          <Button 
-            className="w-full mt-4" 
-            onClick={handleManualSaveToken}
-            disabled={isSavingToken || !fcmToken || !customerData?.generatedCustomerId}
-          >
-            <Save className="mr-2 h-4 w-4" />
-            {isSavingToken ? 'Testing...' : 'Test: Save Token to DB'}
-          </Button>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Notifications</CardTitle></CardHeader>
