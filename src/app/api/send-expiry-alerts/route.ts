@@ -7,24 +7,29 @@ import * as admin from 'firebase-admin';
 import type { CustomerData } from '@/lib/types';
 import { getCustomerById } from '@/lib/dynamodb'; // Re-using our existing function
 
-// Initialize Firebase Admin SDK
-if (!admin.apps.length) {
-    try {
-        const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-        if (!privateKey) {
-            throw new Error("FIREBASE_PRIVATE_KEY is not set.");
+// Initialize Firebase Admin SDK lazily
+function initializeFirebaseAdmin() {
+    if (!admin.apps.length) {
+        try {
+            const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+            if (!privateKey || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
+                throw new Error("Firebase Admin SDK credentials are not fully set in environment variables.");
+            }
+            admin.initializeApp({
+                credential: admin.credential.cert({
+                    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+                    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                    privateKey: privateKey,
+                }),
+            });
+            console.log('Firebase Admin SDK initialized successfully.');
+        } catch (e) {
+            console.error('Firebase admin initialization error', e);
+            // We throw the error to make it clear that initialization failed.
+            throw e;
         }
-        admin.initializeApp({
-            credential: admin.credential.cert({
-                projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-                privateKey: privateKey,
-            }),
-        });
-        console.log('Firebase Admin SDK initialized successfully.');
-    } catch (e) {
-        console.error('Firebase admin initialization error', e);
     }
+    return admin.app();
 }
 
 
@@ -43,6 +48,9 @@ const EXPIRY_THRESHOLD_DAYS = 3;
 export async function GET() {
   console.log('[CRON] Starting expiry alert check...');
   try {
+    // Ensure Firebase is initialized before proceeding
+    initializeFirebaseAdmin();
+
     const scanCommand = new ScanCommand({ 
         TableName: TABLE_NAME,
         // Only scan for items that have a plan end date.

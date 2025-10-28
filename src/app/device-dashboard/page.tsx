@@ -2,23 +2,29 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, collection, onSnapshot, doc } from 'firebase/firestore';
 
-// --- Placeholder for Firebase Config ---
-// In a real Firebase Studio environment, these would be injected.
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
 // --- Firebase Initialization ---
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+function getClientApp() {
+  if (typeof window === 'undefined') return null; // do not run on server/build
+  if (!getApps().length) {
+      const firebaseConfig = {
+        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+      };
+      initializeApp(firebaseConfig);
+  }
+  return getApp();
+}
+
+const app = getClientApp();
+const db = app ? getFirestore(app) : null;
+
 
 // --- Helper Components ---
 
@@ -194,6 +200,7 @@ const DeviceCard = ({ deviceId, localIp }) => {
   const [litersUsed, setLitersUsed] = useState(0);
 
   useEffect(() => {
+    if (!db) return;
     const dataDocRef = doc(db, 'device_data', deviceId);
     
     const unsubscribe = onSnapshot(dataDocRef, (docSnap) => {
@@ -231,6 +238,7 @@ const MonitoringMode = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!db) return;
     const devicesColRef = collection(db, 'devices');
     
     const unsubscribe = onSnapshot(devicesColRef, (snapshot) => {
@@ -250,6 +258,10 @@ const MonitoringMode = () => {
 
   if (loading) {
     return <p className="text-center text-gray-500">Loading devices...</p>;
+  }
+  
+  if (!db) {
+    return <p className="text-center text-red-500">Firebase is not initialized.</p>
   }
 
   return (
