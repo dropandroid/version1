@@ -34,6 +34,7 @@ interface AuthContextType {
   loading: boolean;
   customerStatus: CustomerVerificationStatus;
   customerData: CustomerData | null;
+  fcmToken: string | null; // New state for the token
   setCustomerStatus: (status: CustomerVerificationStatus) => void;
   setCustomerData: (data: CustomerData | null) => void;
   signInWithGoogle: () => Promise<SignInResult>;
@@ -68,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [customerStatus, setCustomerStatus] = useState<CustomerVerificationStatus>('unverified');
   const [customerData, setCustomerDataState] = useState<CustomerData | null>(null);
+  const [fcmToken, setFcmToken] = useState<string | null>(null); // New state
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
@@ -142,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const currentToken = await getToken(messaging, { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY });
         if (currentToken && customerData) {
           console.log('FCM Token:', currentToken);
+          setFcmToken(currentToken); // Also set to state for display
           await saveFcmToken(customerData.generatedCustomerId, currentToken);
         } else {
           console.log('No registration token available or customer data not ready.');
@@ -160,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const token = (event as CustomEvent<string>).detail;
         console.log("✅ [Step 2: The Catch] 'fcmTokenReceived' event caught in hook.");
         if (token) {
+            setFcmToken(token); // Set the token to state for display
             if (customerData?.generatedCustomerId) {
                 console.log(`[Auth Hook] Customer data is ready. Immediately saving token for ${customerData.generatedCustomerId}.`);
                 saveTokenToDb(token, customerData.generatedCustomerId);
@@ -330,7 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, auth, loading, customerStatus, customerData, setCustomerStatus, setCustomerData, signInWithGoogle, signOut, requestNotificationPermission }}>
+    <AuthContext.Provider value={{ user, auth, loading, customerStatus, customerData, fcmToken, setCustomerStatus, setCustomerData, signInWithGoogle, signOut, requestNotificationPermission }}>
       {children}
     </AuthContext.Provider>
   );

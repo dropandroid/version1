@@ -3,9 +3,9 @@
 
 import type { FC } from 'react';
 import { useState } from 'react';
-import { Save, X, Bell } from 'lucide-react';
+import { Save, X, Bell, Hash } from 'lucide-react';
 import { useRoData } from '@/hooks/use-ro-data';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
   const [isEditing, setIsEditing] = useState(false);
   const [tempLimit, setTempLimit] = useState(roDevice.dailyLimit);
   const { toast } = useToast();
-  const { customerData, requestNotificationPermission } = useAuth();
+  const { customerData, requestNotificationPermission, fcmToken } = useAuth();
 
 
   const handleSaveLimit = () => {
@@ -68,6 +68,21 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
   return (
     <div className="p-4 space-y-4">
       <h2 className="text-xl font-bold text-foreground">Settings & Service</h2>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">FCM Token</CardTitle>
+          <CardDescription>This is the token received from the native app for push notifications. For debugging only.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-2">
+            <Hash className="w-4 h-4 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground break-all">
+              {fcmToken || "No token received yet..."}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Notifications</CardTitle></CardHeader>
@@ -152,3 +167,5 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
     </div>
   );
 };
+
+    
