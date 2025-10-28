@@ -89,7 +89,7 @@ export const verifyCustomerPin = async (customerId: string, pin: string, userEma
 };
 
 export const saveFcmToken = async (customerId: string, token: string): Promise<boolean> => {
-    console.log(`Attempting to save token for customerId: ${customerId}`);
+    console.log(`✅ [Step 4: The Database] Attempting to save token for customerId: ${customerId}`);
     const command = new UpdateCommand({
         TableName: TABLE_NAME,
         Key: {
@@ -103,10 +103,10 @@ export const saveFcmToken = async (customerId: string, token: string): Promise<b
 
     try {
         await docClient.send(command);
-        console.log(`Successfully updated fcmToken for ${customerId}`);
+        console.log(`[DB] Successfully updated fcmToken for ${customerId}`);
         return true;
     } catch (error) {
-        console.error(`DynamoDB Error saving fcmToken for ${customerId}:`, error);
+        console.error(`❌ [DB Error] DynamoDB Error saving fcmToken for ${customerId}:`, error);
         return false;
     }
 };

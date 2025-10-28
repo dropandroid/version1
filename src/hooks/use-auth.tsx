@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -87,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const saveTokenToDb = async (token: string, customerId: string) => {
-    console.log(`[AuthProvider] Calling API to save token for customer ${customerId}`);
+    console.log(`[Auth Hook] Calling API to save token for customer ${customerId}`);
     try {
       const response = await fetch('/api/save-token', {
         method: 'POST',
@@ -97,9 +98,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!response.ok) {
         throw new Error(`API call failed with status: ${response.status}`);
       }
-      console.log("[AuthProvider] API call to save token finished successfully.");
+      console.log("[Auth Hook] API call to save token finished successfully.");
     } catch (error) {
-      console.error("[AuthProvider] Error calling /api/save-token:", error);
+      console.error("[Auth Hook] Error calling /api/save-token:", error);
     }
   };
   
@@ -157,17 +158,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleTokenReceived = (event: Event) => {
         const token = (event as CustomEvent<string>).detail;
-        console.log("[AuthProvider] 'fcmTokenReceived' event caught in hook with token:", token ? `${token.substring(0, 15)}...` : 'null');
+        console.log("✅ [Step 2: The Catch] 'fcmTokenReceived' event caught in hook.");
         if (token) {
             if (customerData?.generatedCustomerId) {
-                console.log(`[AuthProvider] Customer data is ready. Immediately saving token for ${customerData.generatedCustomerId}.`);
+                console.log(`[Auth Hook] Customer data is ready. Immediately saving token for ${customerData.generatedCustomerId}.`);
                 saveTokenToDb(token, customerData.generatedCustomerId);
             } else {
-                console.log("[AuthProvider] Customer data not yet available. Holding token.");
+                console.log("[Auth Hook] Customer data not yet available. Holding token.");
                 pendingToken = token;
             }
         } else {
-            console.warn("[AuthProvider] fcmTokenReceived event dispatched with a null or empty token.");
+            console.warn("[Auth Hook] fcmTokenReceived event dispatched with a null or empty token.");
         }
     };
     window.addEventListener('fcmTokenReceived', handleTokenReceived);
@@ -275,14 +276,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data) {
         try {
             localStorage.setItem(CUSTOMER_DATA_STORAGE_KEY, JSON.stringify(data));
-            console.log("[AuthProvider] Customer data set. Checking for pending token.");
+            console.log("[Auth Hook] Customer data set. Checking for pending token.");
             if (pendingToken && data.generatedCustomerId) {
-                console.log(`[AuthProvider] Pending token found. Saving token for ${data.generatedCustomerId}.`);
+                console.log(`[Auth Hook] Pending token found. Saving token now for ${data.generatedCustomerId}.`);
                 saveTokenToDb(data.generatedCustomerId, pendingToken);
                 pendingToken = null; // Important: Clear the token after use
             }
         } catch (e) {
-            console.error("[AuthProvider] Failed to save customer data to localStorage", e);
+            console.error("[Auth Hook] Failed to save customer data to localStorage", e);
         }
     } else {
         localStorage.removeItem(CUSTOMER_DATA_STORAGE_KEY);

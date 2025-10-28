@@ -12,7 +12,7 @@ declare global {
 // 2. Create the function on the window
 if (typeof window !== 'undefined') {
   window.receiveFCMToken = (token: string) => {
-    console.log("fcm-listener: FCM Token received from Android:", token);
+    console.log("✅ [Step 1: The Bridge] 'receiveFCMToken' called by Android. Dispatching event now.");
 
     // 3. Create a new custom event and dispatch it.
     // This is how we pass the token from the plain JavaScript 'window'
