@@ -43,7 +43,7 @@ const client = new DynamoDBClient({
 
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = "droppurity-customers";
-const EXPIRY_THRESHOLD_DAYS = 365; // TEMPORARILY SET TO 365 FOR TESTING
+const EXPIRY_THRESHOLD_DAYS = 7; // Check for plans expiring in the next 7 days
 
 export async function GET() {
   console.log(`[CRON] Starting expiry alert check with threshold of ${EXPIRY_THRESHOLD_DAYS} days...`);
@@ -67,7 +67,7 @@ export async function GET() {
     const customers = Items as CustomerData[];
     const notificationPromises: Promise<any>[] = [];
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize today's date to the beginning of the day for accurate comparison
+    today.setHours(0, 0, 0, 0); // Normalize today's date for accurate comparison
 
     customers.forEach(customer => {
       // Ensure we have the necessary data to proceed
