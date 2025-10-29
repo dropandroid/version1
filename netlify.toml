@@ -6,12 +6,6 @@
   command = "next build"
   publish = ".next"
 
-# Configuration for Netlify Functions, including scheduled functions.
-[functions]
-  # Specifies the directory where Netlify will find the serverless functions.
-  # For Next.js App Router, API routes are automatically discovered.
-  
-  # Schedules the 'send-expiry-alerts' function to run daily at 9:00 AM UTC.
-  [functions.schedule]
-    "send-expiry-alerts" = "0 9 * * *"
-
+# Schedules the API route at /api/send-expiry-alerts to run daily at 9:00 AM UTC.
+[functions."send-expiry-alerts"]
+  schedule = "0 9 * * *"
