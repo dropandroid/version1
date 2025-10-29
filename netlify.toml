@@ -6,9 +6,9 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Daily cron job to check for expiring plans
+# Daily cron job to check for expiring plans.
 # This will run the function at /api/send-expiry-alerts every day at midnight UTC.
 [functions]
   [functions.schedule]
-    # cron expression for daily at midnight UTC
-    send-expiry-alerts = "0 0 * * *"
+    # The key is the function name, and the value is the cron expression.
+    "send-expiry-alerts" = "0 0 * * *"
