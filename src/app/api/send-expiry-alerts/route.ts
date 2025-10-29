@@ -49,14 +49,12 @@ export async function runExpiryCheck() {
   
   initializeFirebaseAdmin();
 
-  const scanCommand = new ScanCommand({ 
-      TableName: TABLE_NAME,
-      FilterExpression: "attribute_exists(planEndDate) AND attribute_exists(fcmToken)"
-  });
+  // Scan the entire table to get all customers
+  const scanCommand = new ScanCommand({ TableName: TABLE_NAME });
   const { Items } = await docClient.send(scanCommand);
 
   if (!Items || Items.length === 0) {
-    console.log('[ExpiryCheck] No customers with plan end dates and FCM tokens found.');
+    console.log('[ExpiryCheck] No customers found in the table.');
     return { 
         message: 'No customers to check.',
         processedCount: 0,
@@ -65,7 +63,7 @@ export async function runExpiryCheck() {
         details: []
     };
   }
-  console.log(`[ExpiryCheck] Found ${Items.length} customers with tokens to check for expiry.`);
+  console.log(`[ExpiryCheck] Found ${Items.length} total customers. Filtering for expiry checks...`);
 
   const customers = Items as CustomerData[];
   const notificationPromises: Promise<any>[] = [];
@@ -76,11 +74,16 @@ export async function runExpiryCheck() {
   customers.forEach(customer => {
     let notificationMessage;
     let status = 'skipped';
+    let detail: any = { customerId: customer.generatedCustomerId || 'N/A' };
 
+    // Only process customers who have a plan end date and a push notification token
     if (customer.planEndDate && customer.fcmToken && customer.generatedCustomerId) {
       const endDate = new Date(customer.planEndDate);
       const diffTime = endDate.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      detail.diffDays = diffDays;
+      detail.planEndDate = customer.planEndDate;
       
       console.log(`[ExpiryCheck] Checking customer ${customer.generatedCustomerId}: Plan ends on ${customer.planEndDate}. Days remaining: ${diffDays}`);
 
@@ -92,7 +95,7 @@ export async function runExpiryCheck() {
           },
           token: customer.fcmToken,
         };
-        status = 'expired';
+        status = 'expired_notification_sent';
       } else if (diffDays <= EXPIRY_THRESHOLD_DAYS) { // Plan is expiring soon
         notificationMessage = {
           notification: {
@@ -101,17 +104,28 @@ export async function runExpiryCheck() {
           },
           token: customer.fcmToken,
         };
-        status = 'expiring';
+        status = 'expiring_notification_sent';
+      } else {
+        status = 'not_due';
       }
       
       if (notificationMessage) {
-        console.log(`[ExpiryCheck] SUCCESS: Found ${status} plan for ${customer.generatedCustomerId}. Queuing notification.`);
+        console.log(`[ExpiryCheck] SUCCESS: Queuing '${status}' notification for ${customer.generatedCustomerId}.`);
         notificationPromises.push(admin.messaging().send(notificationMessage));
-        processedDetails.push({ customerId: customer.generatedCustomerId, status, diffDays });
+        detail.status = status;
       } else {
-         processedDetails.push({ customerId: customer.generatedCustomerId, status: 'not_due', diffDays });
+        detail.status = status;
       }
+    } else {
+        // Log why a customer was skipped
+        let skipReason = [];
+        if (!customer.planEndDate) skipReason.push("missing planEndDate");
+        if (!customer.fcmToken) skipReason.push("missing fcmToken");
+        if (!customer.generatedCustomerId) skipReason.push("missing generatedCustomerId");
+        detail.status = 'skipped';
+        detail.reason = skipReason.join(', ');
     }
+    processedDetails.push(detail);
   });
 
   if (notificationPromises.length === 0) {
@@ -125,17 +139,20 @@ export async function runExpiryCheck() {
       };
   }
 
+  console.log(`[ExpiryCheck] Waiting for ${notificationPromises.length} notifications to be sent...`);
   const results = await Promise.allSettled(notificationPromises);
   let successCount = 0;
   
   results.forEach((result, index) => {
-    const detail = processedDetails.find(d => d.customerId === processedDetails[index].customerId);
+    // Find the original detail object that corresponds to this promise
+    const detail = processedDetails.find(d => d.status.includes('_notification_sent'));
+    
     if (result.status === 'fulfilled') {
       successCount++;
       if (detail) detail.notificationStatus = 'fulfilled';
     } else {
       if (detail) detail.notificationStatus = 'rejected';
-      console.error(`[ExpiryCheck] Failed to send notification to ${detail?.customerId}:`, result.reason);
+      console.error(`[ExpiryCheck] FAILED to send notification to ${detail?.customerId}:`, result.reason);
     }
   });
 
