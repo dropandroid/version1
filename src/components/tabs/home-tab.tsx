@@ -8,7 +8,8 @@ import {
   Phone,
   Wrench,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  FileText
 } from 'lucide-react';
 import { WaterUsageSimulator } from '@/components/water-usage-simulator';
 import { Notifications } from '@/components/notifications';
@@ -17,11 +18,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRoData } from '@/hooks/use-ro-data';
 import { calculateDaysRemaining, getDaysElapsed } from '@/lib/helpers';
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/hooks/use-auth';
 
 type HomeTabProps = ReturnType<typeof useRoData>;
 
 export const HomeTab: FC<HomeTabProps> = (props) => {
   const { roDevice, addWaterUsage, lastUpdated, handleRefresh, isLoading, notifications } = props;
+  const { customerData } = useAuth();
   const daysRemaining = calculateDaysRemaining(roDevice.endDate);
   const daysElapsed = getDaysElapsed(roDevice.startDate);
   const totalPlanDays = daysElapsed + daysRemaining;
@@ -72,11 +75,11 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
               <p className="text-lg font-bold">{roDevice.totalLiters.toFixed(1)}L</p>
             </div>
           </div>
-          <div className={`inline-flex items-center mt-2 px-2 py-1 rounded-full text-xs font-medium ${
-            roDevice.status === 'active' ? 'bg-green-100/20 text-green-50' : 'bg-red-100/20 text-red-50'
+           <div className={`inline-flex items-center mt-2 px-2 py-1 rounded-full text-xs font-medium ${
+            roDevice.status?.toLowerCase() === 'active' ? 'bg-green-100/20 text-green-50' : 'bg-red-100/20 text-red-50'
           }`}>
-             {roDevice.status === 'active' ? <CheckCircle className="w-3 h-3 mr-1.5" /> : <AlertTriangle className="w-3 h-3 mr-1.5" />}
-            {roDevice.status.toUpperCase()}
+             {roDevice.status?.toLowerCase() === 'active' ? <CheckCircle className="w-3 h-3 mr-1.5" /> : <AlertTriangle className="w-3 h-3 mr-1.5" />}
+            {roDevice.status?.toUpperCase()}
           </div>
         </CardContent>
       </Card>
@@ -200,22 +203,31 @@ export const HomeTab: FC<HomeTabProps> = (props) => {
       <Card>
         <CardHeader><CardTitle className="text-base">Plan Information</CardTitle></CardHeader>
         <CardContent className="space-y-2 text-sm">
+          <div className="flex justify-between"><span className="text-muted-foreground">Plan Name:</span><span className="font-medium">{customerData?.currentPlanName || '-'}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Start Date:</span><span className="font-medium">{new Date(roDevice.startDate).toLocaleDateString()}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">End Date:</span><span className="font-medium">{new Date(roDevice.endDate).toLocaleDateString()}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Days Completed:</span><span className="font-medium">{daysElapsed} days</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Total Usage:</span><span className="font-medium">{roDevice.totalLiters.toFixed(1)}L</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Last Usage:</span><span className="font-medium">{new Date(roDevice.lastUsageTime).toLocaleString()}</span></div>
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-2 gap-4">
-        <Button size="lg" onClick={() => toast({ title: "Calling Support", description: "Contacting +91-7979784087" })}>
+        <Button size="lg" onClick={() => toast({ title: "Calling Support", description: `Contacting ${customerData?.customerPhone || 'support'}` })}>
           <Phone /> Support
         </Button>
         <Button size="lg" variant="secondary" onClick={() => toast({ title: "Service Request", description: "Your service request has been submitted."})}>
           <Wrench /> Service
         </Button>
       </div>
+      
+       <Card>
+        <CardHeader><CardTitle className="text-base">Receipts</CardTitle></CardHeader>
+        <CardContent>
+            <Button variant="outline" className="w-full" onClick={() => customerData?.receiptNumber ? toast({title: "Viewing Receipt", description: `Receipt: ${customerData.receiptNumber}`}) : toast({title: "No receipt found"}) }>
+              <FileText className="mr-2 h-4 w-4" /> View Last Receipt
+            </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 };

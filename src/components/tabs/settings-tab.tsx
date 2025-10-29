@@ -3,7 +3,7 @@
 
 import type { FC } from 'react';
 import { useState } from 'react';
-import { Save, X, Bell } from 'lucide-react';
+import { Save, X, Bell, ChevronsRight } from 'lucide-react';
 import { useRoData } from '@/hooks/use-ro-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -127,16 +127,20 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
               <span className="font-medium">{roDevice.deviceName}</span>
             </div>
             <div className="flex justify-between">
+              <span className="text-muted-foreground">Serial Number:</span>
+              <span className="font-medium">{roDevice.serialNumber}</span>
+            </div>
+             <div className="flex justify-between">
               <span className="text-muted-foreground">Installation:</span>
               <span className="font-medium">{roDevice.startDate ? new Date(roDevice.startDate).toLocaleDateString() : '-'}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">TDS (Before):</span>
-              <span className="font-medium">{customerData?.tdsBefore} ppm</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">TDS (After):</span>
-              <span className="font-medium">{customerData?.tdsAfter} ppm</span>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">TDS Reading:</span>
+              <div className="font-medium flex items-center">
+                <span>{customerData?.tdsBefore || 'N/A'} ppm</span>
+                <ChevronsRight className="w-4 h-4 mx-1 text-muted-foreground"/>
+                <span className="text-green-600">{customerData?.tdsAfter || 'N/A'} ppm</span>
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -41,24 +41,31 @@ const createInitialDeviceState = (customerData: CustomerData | null): RODevice =
             nextServiceDate: "",
             totalLiters: 0,
             filterLifeRemaining: 0,
-            lastUsageTime: ""
+            lastUsageTime: "",
+            totalHours: 0,
         };
     }
     
+    // Calculate total liters from total hours if available, at a rate of 15L/hour
+    const totalLitersFromHours = (customerData.currentTotalHours || 0) * 15;
+    // Use totalLitersFromHours if it's greater than currentTotalLitersUsed, otherwise fallback
+    const totalLiters = Math.max(totalLitersFromHours, customerData.currentTotalLitersUsed || 0);
+
     return {
       deviceName: customerData.modelInstalled || "My RO Water Purifier",
-      serialNumber: customerData.serialNumber || "",
+      serialNumber: customerData.serialNumber || "N/A",
       startDate: customerData.planStartDate || new Date().toISOString(),
       endDate: customerData.planEndDate || new Date().toISOString(),
-      todayUsage: 0, // This would be fetched from device
-      monthlyUsage: customerData.currentTotalLitersUsed || 0, // Assuming this is monthly
+      todayUsage: 0, // This would be fetched from device in a real scenario
+      monthlyUsage: totalLiters, // Reflecting total as monthly
       dailyLimit: (customerData.currentPlanTotalLitersLimit && customerData.currentPlanTotalLitersLimit > 0) ? Math.round(customerData.currentPlanTotalLitersLimit / 30) : 50,
-      status: customerData.planStatus?.toLowerCase() === 'expired' ? 'EXPIRED' : 'active',
+      status: customerData.planStatus || 'inactive',
       purityLevel: 98.2, // Placeholder
       tdsLevel: parseInt(customerData.tdsAfter || '45', 10),
-      lastServiceDate: customerData.installationDate || "2024-07-15", // Placeholder
-      nextServiceDate: new Date(new Date(customerData.installationDate || Date.now()).setMonth(new Date(customerData.installationDate || Date.now()).getMonth() + 3)).toISOString(), // Placeholder
-      totalLiters: customerData.currentTotalLitersUsed || 0,
+      lastServiceDate: customerData.installationDate || "2024-07-15", 
+      nextServiceDate: new Date(new Date(customerData.installationDate || Date.now()).setMonth(new Date(customerData.installationDate || Date.now()).getMonth() + 3)).toISOString(),
+      totalLiters: totalLiters,
+      totalHours: customerData.currentTotalHours || 0,
       filterLifeRemaining: 85, // Placeholder
       lastUsageTime: customerData.updatedAt || new Date().toISOString()
     };
@@ -82,15 +89,19 @@ export const useRoData = () => {
 
   const addWaterUsage = useCallback((liters: number) => {
     setRoDevice(prev => {
+      const hoursToAdd = liters / 15; // Convert liters to hours
+      const newTotalHours = (prev.totalHours || 0) + hoursToAdd;
+      const newTotalLiters = newTotalHours * 15;
+
       const newUsage = prev.todayUsage + liters;
-      const newTotal = prev.totalLiters + liters;
       const newPurity = Math.max(95, prev.purityLevel - (liters * 0.01));
       const newTDS = Math.min(60, prev.tdsLevel + (liters * 0.02));
       
       return {
         ...prev,
         todayUsage: Math.round(newUsage * 10) / 10,
-        totalLiters: Math.round(newTotal * 10) / 10,
+        totalLiters: newTotalLiters,
+        totalHours: newTotalHours,
         purityLevel: Math.round(newPurity * 10) / 10,
         tdsLevel: Math.round(newTDS * 10) / 10,
         lastUsageTime: new Date().toISOString(),
@@ -126,7 +137,7 @@ export const useRoData = () => {
       });
     }
 
-    if (roDevice.status === 'EXPIRED') {
+    if (roDevice.status?.toLowerCase() === 'expired') {
        alerts.push({
         type: 'error',
         message: 'Your plan has expired.',

@@ -7,12 +7,13 @@ export interface RODevice {
   todayUsage: number;
   monthlyUsage: number;
   dailyLimit: number;
-  status: "active" | "inactive" | "EXPIRED";
+  status: "active" | "inactive" | "EXPIRED" | "ACTIVE";
   purityLevel: number;
   tdsLevel: number;
   lastServiceDate: string;
   nextServiceDate: string;
   totalLiters: number;
+  totalHours: number;
   filterLifeRemaining: number;
   lastUsageTime: string;
 }
@@ -45,6 +46,7 @@ export interface CustomerData {
   customerPhone: string;
   google_email?: string;
   fcmToken?: string;
+  customerPhotoUrl?: string;
   
   aadhaarNo?: string;
   altMobileNo?: string;
@@ -69,7 +71,7 @@ export interface CustomerData {
   planEndDate?: string;
   planExpiryTimestamp?: number;
   planStartDate?: string;
-  planStatus?: "active" | "inactive" | "EXPIRED";
+  planStatus?: "active" | "inactive" | "EXPIRED" | "ACTIVE";
   receiptNumber?: string;
   rechargeCount?: number;
   registeredAt?: string;
