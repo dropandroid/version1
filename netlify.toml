@@ -2,15 +2,3 @@
 [build]
   command = "next build"
   publish = ".next"
-
-# Scheduled function configuration
-# This will run the function at the specified path on the defined schedule.
-[[plugins]]
-  package = "@netlify/plugin-functions-schedule"
-  [plugins.inputs]
-    schedules = [
-      # Schedule for the send-expiry-alerts function
-      # Cron format: minute, hour, day of month, month, day of week
-      # Runs at 9:00 AM, 3:00 PM, and 9:00 PM UTC every day
-      { function = "/api/send-expiry-alerts", cron = "0 9,15,21 * * *" }
-    ]
