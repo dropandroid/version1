@@ -1,14 +1,17 @@
 
+# This file configures the build and deployment settings for Netlify.
+
+# Build settings for a Next.js application
 [build]
   command = "next build"
   publish = ".next"
 
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
-
-# Daily cron job to check for expiring plans.
-# This will run the function at /api/send-expiry-alerts every day at midnight UTC.
+# Configuration for Netlify Functions, including scheduled functions.
 [functions]
+  # Specifies the directory where Netlify will find the serverless functions.
+  # For Next.js App Router, API routes are automatically discovered.
+  
+  # Schedules the 'send-expiry-alerts' function to run daily at 9:00 AM UTC.
   [functions.schedule]
-    # The key is the function name, and the value is the cron expression.
-    "send-expiry-alerts" = "0 0 * * *"
+    "send-expiry-alerts" = "0 9 * * *"
+
