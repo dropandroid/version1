@@ -10,7 +10,6 @@ import type { CustomerData } from '@/lib/types';
 function initializeFirebaseAdmin() {
     if (!admin.apps.length) {
         try {
-            // The private key needs to have its newlines properly escaped when stored in an env var.
             const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
             if (!privateKey || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
                 throw new Error("Firebase Admin SDK credentials are not fully set in environment variables.");
@@ -25,7 +24,6 @@ function initializeFirebaseAdmin() {
             console.log('[CRON] Firebase Admin SDK initialized successfully.');
         } catch (e) {
             console.error('[CRON] Firebase admin initialization error', e);
-            // We throw the error to make it clear that initialization failed.
             throw e;
         }
     }
@@ -43,81 +41,121 @@ const client = new DynamoDBClient({
 
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = "droppurity-customers";
-const EXPIRY_THRESHOLD_DAYS = 7; // Check for plans expiring in the next 7 days
+const EXPIRY_THRESHOLD_DAYS = 5;
 
-export async function GET() {
-  console.log(`[CRON] Starting expiry alert check with threshold of ${EXPIRY_THRESHOLD_DAYS} days...`);
-  try {
-    // Ensure Firebase is initialized before proceeding
-    initializeFirebaseAdmin();
+// This function can be called by both the scheduled job and the manual trigger
+export async function runExpiryCheck() {
+  console.log(`[ExpiryCheck] Starting expiry alert check with threshold of ${EXPIRY_THRESHOLD_DAYS} days...`);
+  
+  initializeFirebaseAdmin();
 
-    const scanCommand = new ScanCommand({ 
-        TableName: TABLE_NAME,
-        // Only scan for items that have a plan end date and an FCM token.
-        FilterExpression: "attribute_exists(planEndDate) AND attribute_exists(fcmToken)"
-    });
-    const { Items } = await docClient.send(scanCommand);
+  const scanCommand = new ScanCommand({ 
+      TableName: TABLE_NAME,
+      FilterExpression: "attribute_exists(planEndDate) AND attribute_exists(fcmToken)"
+  });
+  const { Items } = await docClient.send(scanCommand);
 
-    if (!Items || Items.length === 0) {
-      console.log('[CRON] No customers with plan end dates and FCM tokens found.');
-      return NextResponse.json({ message: 'No customers to check.' });
-    }
-    console.log(`[CRON] Found ${Items.length} customers with tokens to check for expiry.`);
+  if (!Items || Items.length === 0) {
+    console.log('[ExpiryCheck] No customers with plan end dates and FCM tokens found.');
+    return { 
+        message: 'No customers to check.',
+        processedCount: 0,
+        sent: 0,
+        failed: 0,
+        details: []
+    };
+  }
+  console.log(`[ExpiryCheck] Found ${Items.length} customers with tokens to check for expiry.`);
 
-    const customers = Items as CustomerData[];
-    const notificationPromises: Promise<any>[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize today's date for accurate comparison
+  const customers = Items as CustomerData[];
+  const notificationPromises: Promise<any>[] = [];
+  const processedDetails: any[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-    customers.forEach(customer => {
-      // Ensure we have the necessary data to proceed
-      if (customer.planEndDate && customer.fcmToken && customer.generatedCustomerId) {
-        const endDate = new Date(customer.planEndDate);
-        const diffTime = endDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        console.log(`[CRON] Checking customer ${customer.generatedCustomerId}: Plan ends on ${customer.planEndDate}. Days remaining: ${diffDays}`);
+  customers.forEach(customer => {
+    let notificationMessage;
+    let status = 'skipped';
 
-        // Check if the plan is expiring within the threshold (and hasn't already expired)
-        if (diffDays > 0 && diffDays <= EXPIRY_THRESHOLD_DAYS) {
-          const message = {
-            notification: {
-              title: 'AquaTrack Plan Expiry',
-              body: `Your plan is expiring in ${diffDays} day(s). Renew now to continue service.`,
-            },
-            token: customer.fcmToken,
-          };
-          
-          console.log(`[CRON] SUCCESS: Found expiring plan for ${customer.generatedCustomerId}. Queuing notification.`);
-          notificationPromises.push(admin.messaging().send(message));
-        }
+    if (customer.planEndDate && customer.fcmToken && customer.generatedCustomerId) {
+      const endDate = new Date(customer.planEndDate);
+      const diffTime = endDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      console.log(`[ExpiryCheck] Checking customer ${customer.generatedCustomerId}: Plan ends on ${customer.planEndDate}. Days remaining: ${diffDays}`);
+
+      if (diffDays <= 0) { // Plan has expired
+        notificationMessage = {
+          notification: {
+            title: 'AquaTrack Plan Expired',
+            body: 'Your plan has expired. Please recharge immediately to restore service.',
+          },
+          token: customer.fcmToken,
+        };
+        status = 'expired';
+      } else if (diffDays <= EXPIRY_THRESHOLD_DAYS) { // Plan is expiring soon
+        notificationMessage = {
+          notification: {
+            title: 'AquaTrack Plan Expiry',
+            body: `Your plan is expiring in ${diffDays} day(s). Renew now to continue service.`,
+          },
+          token: customer.fcmToken,
+        };
+        status = 'expiring';
       }
-    });
-
-    if (notificationPromises.length === 0) {
-        console.log('[CRON] No plans found expiring within the threshold.');
-        return NextResponse.json({ 
-            message: 'Expiry alert check ran, but no notifications were required to be sent.',
-        });
+      
+      if (notificationMessage) {
+        console.log(`[ExpiryCheck] SUCCESS: Found ${status} plan for ${customer.generatedCustomerId}. Queuing notification.`);
+        notificationPromises.push(admin.messaging().send(notificationMessage));
+        processedDetails.push({ customerId: customer.generatedCustomerId, status, diffDays });
+      } else {
+         processedDetails.push({ customerId: customer.generatedCustomerId, status: 'not_due', diffDays });
+      }
     }
+  });
 
-    const results = await Promise.allSettled(notificationPromises);
-    const successCount = results.filter(r => r.status === 'fulfilled').length;
-    const failedCount = results.length - successCount;
-    
-    console.log(`[CRON] Expiry alert check complete. Sent: ${successCount}, Failed: ${failedCount}`);
+  if (notificationPromises.length === 0) {
+      console.log('[ExpiryCheck] No plans found meeting the expiry criteria.');
+      return { 
+          message: 'Expiry alert check ran, but no notifications were required to be sent.',
+          processedCount: customers.length,
+          sent: 0,
+          failed: 0,
+          details: processedDetails
+      };
+  }
 
-    results.forEach(result => {
-        if (result.status === 'rejected') {
-            console.error('[CRON] Failed to send notification:', result.reason);
-        }
-    });
+  const results = await Promise.allSettled(notificationPromises);
+  let successCount = 0;
+  
+  results.forEach((result, index) => {
+    const detail = processedDetails.find(d => d.customerId === processedDetails[index].customerId);
+    if (result.status === 'fulfilled') {
+      successCount++;
+      if (detail) detail.notificationStatus = 'fulfilled';
+    } else {
+      if (detail) detail.notificationStatus = 'rejected';
+      console.error(`[ExpiryCheck] Failed to send notification to ${detail?.customerId}:`, result.reason);
+    }
+  });
 
-    return NextResponse.json({ 
-        message: 'Expiry alert check complete.',
-        sent: successCount,
-        failed: failedCount,
-    });
+  const failedCount = results.length - successCount;
+  console.log(`[ExpiryCheck] Complete. Sent: ${successCount}, Failed: ${failedCount}`);
 
+  return {
+    message: 'Expiry alert check complete.',
+    processedCount: customers.length,
+    sent: successCount,
+    failed: failedCount,
+    details: processedDetails,
+  };
+}
+
+// This is the endpoint that Netlify's cron job will call
+export async function GET() {
+  try {
+    const result = await runExpiryCheck();
+    return NextResponse.json(result);
   } catch (error) {
     console.error('[CRON] Error sending expiry alerts:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
