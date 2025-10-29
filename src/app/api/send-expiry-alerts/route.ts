@@ -90,7 +90,7 @@ export async function runExpiryCheck() {
       if (diffDays <= 0) { // Plan has expired
         notificationMessage = {
           notification: {
-            title: 'AquaTrack Plan Expired',
+            title: 'Droppurity Plan Expired',
             body: 'Your plan has expired. Please recharge immediately to restore service.',
           },
           token: customer.fcmToken,
@@ -99,7 +99,7 @@ export async function runExpiryCheck() {
       } else if (diffDays <= EXPIRY_THRESHOLD_DAYS) { // Plan is expiring soon
         notificationMessage = {
           notification: {
-            title: 'AquaTrack Plan Expiry',
+            title: 'Droppurity Plan Expiry',
             body: `Your plan is expiring in ${diffDays} day(s). Renew now to continue service.`,
           },
           token: customer.fcmToken,
