@@ -1,19 +1,15 @@
-
-# This file configures the build and deployment settings for Netlify.
-
+# Netlify build configuration
 [build]
   command = "next build"
   publish = ".next"
 
-[functions]
-  # Configures the function associated with the specified API route.
-  # This makes it available for scheduling.
-  included_files = ["src/app/api/send-expiry-alerts/**"]
-
-# Schedules the function to run at 9am, 3pm, and 9pm UTC every day.
+# Scheduled function configuration
+# This will run the function at the specified path on the defined schedule.
 [[plugins]]
-package = "@netlify/plugin-functions-schedule"
-  [plugins.inputs]
-  schedules = [
-    { cron = "0 9,15,21 * * *", function = "send-expiry-alerts" }
-  ]
+  package = "@netlify/plugin-functions-schedule"
+
+  [plugins.inputs.schedules]
+    # Schedule for the send-expiry-alerts function
+    # Cron format: minute, hour, day of month, month, day of week
+    # Runs at 9:00 AM, 3:00 PM, and 9:00 PM UTC every day
+    "/api/send-expiry-alerts" = "0 9,15,21 * * *"
