@@ -22,9 +22,9 @@ function initializeFirebaseAdmin() {
                     privateKey: privateKey,
                 }),
             });
-            console.log('Firebase Admin SDK initialized successfully.');
+            console.log('[CRON] Firebase Admin SDK initialized successfully.');
         } catch (e) {
-            console.error('Firebase admin initialization error', e);
+            console.error('[CRON] Firebase admin initialization error', e);
             // We throw the error to make it clear that initialization failed.
             throw e;
         }
@@ -43,10 +43,10 @@ const client = new DynamoDBClient({
 
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = "droppurity-customers";
-const EXPIRY_THRESHOLD_DAYS = 3; // Notify for plans expiring within this many days.
+const EXPIRY_THRESHOLD_DAYS = 365; // TEMPORARILY SET TO 365 FOR TESTING
 
 export async function GET() {
-  console.log('[CRON] Starting expiry alert check...');
+  console.log(`[CRON] Starting expiry alert check with threshold of ${EXPIRY_THRESHOLD_DAYS} days...`);
   try {
     // Ensure Firebase is initialized before proceeding
     initializeFirebaseAdmin();
@@ -75,6 +75,7 @@ export async function GET() {
         const endDate = new Date(customer.planEndDate);
         const diffTime = endDate.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        console.log(`[CRON] Checking customer ${customer.generatedCustomerId}: Plan ends on ${customer.planEndDate}. Days remaining: ${diffDays}`);
 
         // Check if the plan is expiring within the threshold (and hasn't already expired)
         if (diffDays > 0 && diffDays <= EXPIRY_THRESHOLD_DAYS) {
@@ -86,7 +87,7 @@ export async function GET() {
             token: customer.fcmToken,
           };
           
-          console.log(`[CRON] Found expiring plan for ${customer.generatedCustomerId}. Queuing notification.`);
+          console.log(`[CRON] SUCCESS: Found expiring plan for ${customer.generatedCustomerId}. Queuing notification.`);
           notificationPromises.push(admin.messaging().send(message));
         }
       }
