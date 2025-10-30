@@ -1,8 +1,12 @@
+
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, collection, onSnapshot, doc } from 'firebase/firestore';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Loader2, Wifi, Router } from 'lucide-react';
 
 // --- Firebase Initialization ---
 function getClientApp() {
@@ -25,168 +29,40 @@ const app = getClientApp();
 const db = app ? getFirestore(app) : null;
 
 
-// --- Helper Components ---
-
-const Card = ({ children, className = '' }) => (
-  <div className={`bg-white shadow-md rounded-lg p-6 ${className}`}>
-    {children}
-  </div>
-);
-
-const Button = ({ children, onClick, disabled = false, className = '' }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    className={`px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 disabled:bg-gray-400 disabled:cursor-not-allowed ${className}`}
-  >
-    {children}
-  </button>
-);
-
-const Input = ({ value, onChange, placeholder, type = 'text', className = '' }) => (
-  <input
-    type={type}
-    value={value}
-    onChange={onChange}
-    placeholder={placeholder}
-    className={`mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${className}`}
-  />
-);
-
-const Label = ({ children, htmlFor, className = '' }) => (
-    <label htmlFor={htmlFor} className={`block text-sm font-medium text-gray-700 ${className}`}>
-        {children}
-    </label>
-);
-
-
 // --- Configuration Mode Component ---
 
-const ConfigurationMode = ({ setMode }) => {
-  const [deviceIp, setDeviceIp] = useState('192.168.4.1');
-  const [networks, setNetworks] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [isConnected, setIsConnected] = useState(false);
+const ConfigurationMode = () => {
 
-  const [ssid, setSsid] = useState('');
-  const [password, setPassword] = useState('');
-  const [configStatus, setConfigStatus] = useState('');
-
-  const handleConnect = async () => {
-    setIsLoading(true);
-    setError('');
-    setNetworks([]);
-    try {
-      const response = await fetch(`http://${deviceIp}/scanwifi`);
-      if (!response.ok) {
-        throw new Error('Device not found or did not respond correctly.');
-      }
-      const htmlText = await response.text();
-      
-      // Basic HTML parsing to extract SSIDs
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlText, 'text/html');
-      const foundNetworks = Array.from(doc.querySelectorAll('.network-item strong')).map(el => el.textContent);
-
-      if (foundNetworks.length === 0) {
-        setError('No WiFi networks found by the device. Try refreshing.');
-      }
-
-      setNetworks(foundNetworks);
-      setIsConnected(true);
-    } catch (e) {
-      console.error('Failed to connect to device:', e);
-      setError('Could not connect to the device. Ensure you are connected to the "droppurity" WiFi hotspot and the IP is correct.');
-    } finally {
-      setIsLoading(false);
+  const handleSetupClick = () => {
+    if (window.AndroidBridge && typeof window.AndroidBridge.startDeviceSetup === 'function') {
+      console.log("Calling AndroidBridge.startDeviceSetup()");
+      window.AndroidBridge.startDeviceSetup();
+    } else {
+      alert("This feature is only available on the native Android app. Please open the app on your device to configure a new RO unit.");
+      console.warn("AndroidBridge.startDeviceSetup not found.");
     }
-  };
-
-  const handleSaveConfig = async () => {
-    setIsLoading(true);
-    setConfigStatus('');
-    setError('');
-    try {
-        const formData = new URLSearchParams();
-        formData.append('ssid', ssid);
-        formData.append('pass', password);
-
-      const response = await fetch(`http://${deviceIp}/scanwifi`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData.toString(),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to send configuration to the device.');
-      }
-      setConfigStatus('Configuration sent. The device will now attempt to connect to your WiFi. Please switch your computer back to your local WiFi network to access the Monitoring Dashboard.');
-      setSsid('');
-      setPassword('');
-    } catch (e) {
-      console.error('Failed to save config:', e);
-      setError('Failed to send configuration. Please check the device connection and try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const selectNetwork = (netSsid) => {
-    setSsid(netSsid);
   };
 
   return (
     <Card>
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">Device Configuration</h2>
-      {!isConnected ? (
-        <div>
-          <p className="text-gray-600 mb-4">Connect to the device's hotspot (SSID: droppurity) and click below.</p>
-          <div className="mb-4">
-            <Label htmlFor="device-ip">Device IP Address</Label>
-            <Input 
-                id="device-ip"
-                value={deviceIp} 
-                onChange={(e) => setDeviceIp(e.target.value)} 
-            />
-          </div>
-          <Button onClick={handleConnect} disabled={isLoading}>
-            {isLoading ? 'Connecting...' : 'Connect to Device'}
-          </Button>
+      <CardHeader>
+        <div className="flex justify-center items-center mb-4">
+          <Wifi className="w-12 h-12 text-primary" />
         </div>
-      ) : (
-        <div>
-          <h3 className="text-xl font-semibold text-gray-700 mb-3">WiFi Setup</h3>
-          {networks.length > 0 && (
-            <div className="mb-4">
-              <p className="text-gray-600 mb-2">Click a network to select it:</p>
-              <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-1">
-                {networks.map(net => (
-                  <div key={net} onClick={() => selectNetwork(net)} className="p-2 rounded-md hover:bg-blue-100 cursor-pointer text-sm">
-                    {net}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="ssid">WiFi Name (SSID)</Label>
-              <Input id="ssid" value={ssid} onChange={(e) => setSsid(e.target.value)} placeholder="Enter SSID manually" />
-            </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter WiFi password" />
-            </div>
-          </div>
-          <Button onClick={handleSaveConfig} disabled={isLoading || !ssid} className="mt-6 w-full">
-            {isLoading ? 'Saving...' : 'Save & Connect to WiFi'}
-          </Button>
+        <CardTitle className="text-center">Configure New Device</CardTitle>
+        <CardDescription className="text-center">
+          Add a new AquaTrack device to your account by starting the setup process.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="text-sm text-muted-foreground mb-6 text-center">
+          <p>This will open the device provisioning screen on your phone to connect the RO unit to your local Wi-Fi.</p>
         </div>
-      )}
-      {error && <p className="text-red-500 mt-4 text-sm">{error}</p>}
-      {configStatus && <p className="text-green-600 mt-4 text-sm font-semibold">{configStatus}</p>}
+        <Button size="lg" className="w-full" onClick={handleSetupClick}>
+          <Router className="mr-2 h-5 w-5" />
+          Start Device Setup
+        </Button>
+      </CardContent>
     </Card>
   );
 };
@@ -195,11 +71,11 @@ const ConfigurationMode = ({ setMode }) => {
 // --- Monitoring Mode Components ---
 
 const DeviceCard = ({ deviceId, localIp }) => {
-  const [deviceData, setDeviceData] = useState({ totalHoursRun: 0 });
+  const [deviceData, setDeviceData] = useState<{totalHours?: number} | null>(null);
   const [litersUsed, setLitersUsed] = useState(0);
 
   useEffect(() => {
-    if (!db) return;
+    if (!db || !deviceId) return;
     const dataDocRef = doc(db, 'device_data', deviceId);
     
     const unsubscribe = onSnapshot(dataDocRef, (docSnap) => {
@@ -210,6 +86,7 @@ const DeviceCard = ({ deviceId, localIp }) => {
         setLitersUsed(calculatedLiters);
       } else {
         console.log(`No data document for device: ${deviceId}`);
+        setDeviceData(null);
       }
     }, (error) => {
       console.error(`Error listening to data for device ${deviceId}:`, error);
@@ -219,32 +96,42 @@ const DeviceCard = ({ deviceId, localIp }) => {
   }, [deviceId]);
 
   return (
-    <Card className="flex flex-col justify-between">
+    <Card className="flex flex-col justify-between p-4">
       <div>
-        <h3 className="text-lg font-bold text-gray-800 truncate">{deviceId}</h3>
-        <p className="text-sm text-gray-500 mb-4">IP: {localIp}</p>
+        <h3 className="text-base font-bold text-foreground truncate" title={deviceId}>{deviceId}</h3>
+        <p className="text-xs text-muted-foreground mb-3">IP: {localIp || 'Unknown'}</p>
       </div>
-      <div className="text-right">
-        <p className="text-gray-600 text-sm">Total Liters Used</p>
-        <p className="text-4xl font-bold text-blue-600">{litersUsed.toFixed(2)}</p>
-      </div>
+      {deviceData !== null ? (
+        <div className="text-right">
+          <p className="text-muted-foreground text-xs">Total Liters Used</p>
+          <p className="text-2xl font-bold text-primary">{litersUsed.toFixed(1)} L</p>
+        </div>
+      ) : (
+         <div className="flex items-center justify-center text-xs text-muted-foreground">
+            <Loader2 className="mr-2 h-3 w-3 animate-spin"/>
+            <span>Waiting for data...</span>
+        </div>
+      )}
     </Card>
   );
 };
 
 const MonitoringMode = () => {
-  const [devices, setDevices] = useState([]);
+  const [devices, setDevices] = useState<{id: string, deviceId: string, localIp: string}[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!db) return;
+    if (!db) {
+        setLoading(false);
+        return;
+    }
     const devicesColRef = collection(db, 'devices');
     
     const unsubscribe = onSnapshot(devicesColRef, (snapshot) => {
       const deviceList = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      } as {id: string, deviceId: string, localIp: string}));
       setDevices(deviceList);
       setLoading(false);
     }, (error) => {
@@ -256,26 +143,35 @@ const MonitoringMode = () => {
   }, []);
 
   if (loading) {
-    return <p className="text-center text-gray-500">Loading devices...</p>;
+    return (
+        <div className="flex items-center justify-center h-40">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        </div>
+    );
   }
   
   if (!db) {
-    return <p className="text-center text-red-500">Firebase is not initialized.</p>
+    return <p className="text-center text-destructive">Firebase is not initialized.</p>
   }
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">Device Monitoring</h2>
-      {devices.length === 0 ? (
-        <p className="text-center text-gray-500">No online devices found.</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {devices.map(device => (
-            <DeviceCard key={device.id} deviceId={device.deviceId} localIp={device.localIp} />
-          ))}
-        </div>
-      )}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Live Device Monitoring</CardTitle>
+        <CardDescription>Real-time status of all connected devices on your network.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {devices.length === 0 ? (
+          <p className="text-center text-sm text-muted-foreground py-8">No online devices found. Please configure a device to see its status here.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {devices.map(device => (
+              <DeviceCard key={device.id} deviceId={device.deviceId} localIp={device.localIp} />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
@@ -283,33 +179,33 @@ const MonitoringMode = () => {
 // --- Main App Component ---
 
 export default function DeviceDashboardPage() {
-  const [mode, setMode] = useState('config'); // 'config' or 'monitor'
+  const [mode, setMode] = useState('monitor'); // 'monitor' or 'config'
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900">Device Dashboard</h1>
-          <p className="text-lg text-gray-500">Provision new devices and monitor live data.</p>
+        <header className="mb-8 text-center">
+          <h1 className="text-3xl font-bold text-primary">Device Dashboard</h1>
+          <p className="text-lg text-muted-foreground">Provision new devices and monitor live data.</p>
         </header>
 
-        <div className="flex justify-center mb-6 border-b border-gray-200">
-            <button 
-                onClick={() => setMode('config')}
-                className={`px-4 py-2 text-sm font-medium border-b-2 ${mode === 'config' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-            >
-                Device Configuration
-            </button>
+        <div className="flex justify-center mb-6 border-b">
             <button 
                 onClick={() => setMode('monitor')}
-                className={`px-4 py-2 text-sm font-medium border-b-2 ${mode === 'monitor' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`px-6 py-2 text-sm font-medium border-b-2 transition-colors ${mode === 'monitor' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
             >
                 Live Monitoring
             </button>
+            <button 
+                onClick={() => setMode('config')}
+                className={`px-6 py-2 text-sm font-medium border-b-2 transition-colors ${mode === 'config' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+            >
+                Device Configuration
+            </button>
         </div>
 
-        <main>
-          {mode === 'config' ? <ConfigurationMode setMode={setMode} /> : <MonitoringMode />}
+        <main className="max-w-4xl mx-auto">
+          {mode === 'config' ? <ConfigurationMode /> : <MonitoringMode />}
         </main>
       </div>
     </div>
