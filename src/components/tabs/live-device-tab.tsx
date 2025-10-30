@@ -17,19 +17,24 @@ const DeviceCard = ({ deviceId, localIp, totalHours }) => {
   const litersUsed = (totalHours || 0) * 15;
 
   return (
-    <Card className="flex flex-col justify-between">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base truncate">{deviceId}</CardTitle>
-        <CardDescription>IP: {localIp}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-right">
-          <p className="text-muted-foreground text-sm">Total Liters Used</p>
-          <p className="text-3xl font-bold text-primary">{litersUsed.toFixed(1)}L</p>
-           <p className="text-xs text-muted-foreground">{totalHours.toFixed(2)} hours</p>
-        </div>
-      </CardContent>
-    </Card>
+    <a href={`http://${localIp}`} target="_blank" rel="noopener noreferrer" className="block hover:shadow-lg transition-shadow rounded-lg">
+      <Card className="flex flex-col justify-between h-full">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-base truncate">{deviceId}</CardTitle>
+            <ExternalLink className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <CardDescription>IP: {localIp}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-right">
+            <p className="text-muted-foreground text-sm">Total Liters Used</p>
+            <p className="text-3xl font-bold text-primary">{litersUsed.toFixed(1)}L</p>
+            <p className="text-xs text-muted-foreground">{totalHours.toFixed(2)} hours</p>
+          </div>
+        </CardContent>
+      </Card>
+    </a>
   );
 };
 
