@@ -59,6 +59,7 @@ declare global {
         onEmailNotFound: (email: string) => void;
         triggerPhoneCall: (phoneNumber: string) => void;
         openExternalUrl: (url: string) => void;
+        startDeviceSetup: () => void;
     };
   }
 }
@@ -311,7 +312,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    useEffect(() => {
     if (loading) return;
 
-    const isPublicPage = pathname === '/login' || pathname === '/verify-customer' || pathname === '/admin';
+    const isPublicPage = pathname === '/login' || pathname === '/verify-customer' || pathname === '/admin' || pathname === '/setup';
 
     if (!user && !isPublicPage) {
       router.push('/login');

@@ -11,7 +11,6 @@ import { AnalyticsTab } from '@/components/tabs/analytics-tab';
 import { SettingsTab } from '@/components/tabs/settings-tab';
 import { ProfileTab } from '@/components/tabs/profile-tab';
 import { Skeleton } from '@/components/ui/skeleton';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { WifiOff, User, Home as HomeIcon, Phone, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -33,6 +32,15 @@ const AppSkeleton: FC = () => (
 const DisconnectedState: FC = () => {
     const { customerData } = useAuth();
     
+    const handleSetupDevice = () => {
+      if (window.AndroidBridge && typeof window.AndroidBridge.startDeviceSetup === 'function') {
+        window.AndroidBridge.startDeviceSetup();
+      } else {
+        // Fallback for web or if bridge is not available
+        alert("Please open the app on your Android device to set up a new device.");
+      }
+    };
+
     return (
         <div className="p-4 mt-8">
             <Card>
@@ -57,9 +65,9 @@ const DisconnectedState: FC = () => {
                             </div>
                         </div>
                     )}
-                    <Link href="/setup" passHref>
-                        <Button size="lg" className="w-full">Connect Device</Button>
-                    </Link>
+                    <Button size="lg" className="w-full" onClick={handleSetupDevice}>
+                        Setup New Device
+                    </Button>
                 </CardContent>
             </Card>
         </div>
