@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ShieldCheck, Loader2, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Loader2, RefreshCw, Bot, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -17,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
 const ADMIN_PASSWORD = "Birendra555@";
@@ -26,6 +28,7 @@ interface NotificationLog {
     customerId: string;
     sentAt: string;
     message: string;
+    triggerType: 'auto' | 'manual';
 }
 
 
@@ -118,6 +121,7 @@ const AdminDashboard = () => {
                                     <TableRow>
                                         <TableHead>Customer ID</TableHead>
                                         <TableHead>Message</TableHead>
+                                        <TableHead>Trigger</TableHead>
                                         <TableHead className="text-right">Sent At</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -126,6 +130,12 @@ const AdminDashboard = () => {
                                         <TableRow key={log.logId}>
                                             <TableCell className="font-mono text-xs">{log.customerId}</TableCell>
                                             <TableCell className="text-xs">{log.message}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={log.triggerType === 'auto' ? 'secondary' : 'default'} className="text-xs">
+                                                     {log.triggerType === 'auto' ? <Bot className="mr-1 h-3 w-3"/> : <User className="mr-1 h-3 w-3"/>}
+                                                    {log.triggerType}
+                                                </Badge>
+                                            </TableCell>
                                             <TableCell className="text-right text-xs">{format(new Date(log.sentAt), "MMM d, h:mm a")}</TableCell>
                                         </TableRow>
                                     ))}

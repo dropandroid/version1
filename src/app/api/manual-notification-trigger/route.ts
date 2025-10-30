@@ -6,8 +6,8 @@ import { runExpiryCheck } from '@/app/api/send-expiry-alerts/route';
 export async function GET() {
   console.log('[MANUAL TRIGGER] Manual notification check initiated.');
   try {
-    // We reuse the exact same logic from the scheduled function
-    const result = await runExpiryCheck();
+    // We reuse the exact same logic from the scheduled function, specifying the trigger type
+    const result = await runExpiryCheck('manual');
     console.log('[MANUAL TRIGGER] Manual check finished successfully.');
     // Return the detailed results as a JSON response
     return NextResponse.json(result);

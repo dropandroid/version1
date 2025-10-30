@@ -48,7 +48,7 @@ const EXPIRY_THRESHOLD_DAYS = 5;
 const SEVEN_DAYS_IN_SECONDS = 7 * 24 * 60 * 60;
 
 
-async function logNotification(customerId: string, message: string) {
+async function logNotification(customerId: string, message: string, triggerType: 'auto' | 'manual') {
     const sentAt = new Date();
     const ttl = Math.floor(sentAt.getTime() / 1000) + SEVEN_DAYS_IN_SECONDS;
 
@@ -59,13 +59,14 @@ async function logNotification(customerId: string, message: string) {
             customerId: customerId,
             sentAt: sentAt.toISOString(),
             message: message,
+            triggerType: triggerType,
             ttl: ttl,
         },
     });
 
     try {
         await docClient.send(command);
-        console.log(`[Log] Successfully logged notification for ${customerId}`);
+        console.log(`[Log] Successfully logged notification for ${customerId} (Trigger: ${triggerType})`);
     } catch (error) {
         console.error(`[Log] Error logging notification for ${customerId}:`, error);
     }
@@ -73,8 +74,8 @@ async function logNotification(customerId: string, message: string) {
 
 
 // This function can be called by both the scheduled job and the manual trigger
-export async function runExpiryCheck() {
-  console.log(`[ExpiryCheck] Starting expiry alert check with threshold of ${EXPIRY_THRESHOLD_DAYS} days...`);
+export async function runExpiryCheck(triggerType: 'auto' | 'manual' = 'auto') {
+  console.log(`[ExpiryCheck] Starting expiry alert check (Trigger: ${triggerType}) with threshold of ${EXPIRY_THRESHOLD_DAYS} days...`);
   
   initializeFirebaseAdmin();
 
@@ -190,7 +191,7 @@ export async function runExpiryCheck() {
       const { customerId, message } = result.value;
       if (detail) detail.notificationStatus = 'fulfilled';
       // Log the successful notification
-      logNotification(customerId, message);
+      logNotification(customerId, message, triggerType);
     } else {
       // It's harder to correlate failures without more context from the promise, 
       // but we can log the general failure.
@@ -218,7 +219,7 @@ export async function runExpiryCheck() {
 // This is the endpoint that Netlify's cron job will call
 export async function GET() {
   try {
-    const result = await runExpiryCheck();
+    const result = await runExpiryCheck('auto'); // This is an automatic trigger
     return NextResponse.json(result);
   } catch (error) {
     console.error('[CRON] Error sending expiry alerts:', error);
