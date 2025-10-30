@@ -2,9 +2,11 @@
 import 'dotenv/config';
 import { NextResponse } from 'next/server';
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, ScanCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import * as admin from 'firebase-admin';
 import type { CustomerData } from '@/lib/types';
+import { randomUUID } from 'crypto';
+
 
 // Initialize Firebase Admin SDK lazily
 function initializeFirebaseAdmin() {
@@ -40,8 +42,35 @@ const client = new DynamoDBClient({
 });
 
 const docClient = DynamoDBDocumentClient.from(client);
-const TABLE_NAME = "droppurity-customers";
+const CUSTOMERS_TABLE_NAME = "droppurity-customers";
+const LOG_TABLE_NAME = "droppurity-notification-logs";
 const EXPIRY_THRESHOLD_DAYS = 5;
+const SEVEN_DAYS_IN_SECONDS = 7 * 24 * 60 * 60;
+
+
+async function logNotification(customerId: string, message: string) {
+    const sentAt = new Date();
+    const ttl = Math.floor(sentAt.getTime() / 1000) + SEVEN_DAYS_IN_SECONDS;
+
+    const command = new PutCommand({
+        TableName: LOG_TABLE_NAME,
+        Item: {
+            logId: randomUUID(),
+            customerId: customerId,
+            sentAt: sentAt.toISOString(),
+            message: message,
+            ttl: ttl,
+        },
+    });
+
+    try {
+        await docClient.send(command);
+        console.log(`[Log] Successfully logged notification for ${customerId}`);
+    } catch (error) {
+        console.error(`[Log] Error logging notification for ${customerId}:`, error);
+    }
+}
+
 
 // This function can be called by both the scheduled job and the manual trigger
 export async function runExpiryCheck() {
@@ -50,7 +79,7 @@ export async function runExpiryCheck() {
   initializeFirebaseAdmin();
 
   // Scan the entire table to get all customers
-  const scanCommand = new ScanCommand({ TableName: TABLE_NAME });
+  const scanCommand = new ScanCommand({ TableName: CUSTOMERS_TABLE_NAME });
   const { Items } = await docClient.send(scanCommand);
 
   if (!Items || Items.length === 0) {
@@ -66,13 +95,14 @@ export async function runExpiryCheck() {
   console.log(`[ExpiryCheck] Found ${Items.length} total customers. Filtering for expiry checks...`);
 
   const customers = Items as CustomerData[];
-  const notificationPromises: Promise<any>[] = [];
+  const notificationPromises: Promise<{ customerId: string; message: string; result: any}>[] = [];
   const processedDetails: any[] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   customers.forEach(customer => {
     let notificationMessage;
+    let notificationBody = '';
     let status = 'skipped';
     let detail: any = { customerId: customer.generatedCustomerId || 'N/A' };
 
@@ -88,19 +118,21 @@ export async function runExpiryCheck() {
       console.log(`[ExpiryCheck] Checking customer ${customer.generatedCustomerId}: Plan ends on ${customer.planEndDate}. Days remaining: ${diffDays}`);
 
       if (diffDays <= 0) { // Plan has expired
+        notificationBody = 'Your plan has expired. Please recharge immediately to restore service.';
         notificationMessage = {
           notification: {
             title: 'Droppurity Plan Expired',
-            body: 'Your plan has expired. Please recharge immediately to restore service.',
+            body: notificationBody,
           },
           token: customer.fcmToken,
         };
         status = 'expired_notification_sent';
       } else if (diffDays <= EXPIRY_THRESHOLD_DAYS) { // Plan is expiring soon
+        notificationBody = `Your plan is expiring in ${diffDays} day(s). Renew now to continue service.`;
         notificationMessage = {
           notification: {
             title: 'Droppurity Plan Expiry',
-            body: `Your plan is expiring in ${diffDays} day(s). Renew now to continue service.`,
+            body: notificationBody,
           },
           token: customer.fcmToken,
         };
@@ -109,9 +141,13 @@ export async function runExpiryCheck() {
         status = 'not_due';
       }
       
-      if (notificationMessage) {
+      if (notificationMessage && customer.generatedCustomerId) {
         console.log(`[ExpiryCheck] SUCCESS: Queuing '${status}' notification for ${customer.generatedCustomerId}.`);
-        notificationPromises.push(admin.messaging().send(notificationMessage));
+        
+        const sendPromise = admin.messaging().send(notificationMessage)
+            .then(result => ({ customerId: customer.generatedCustomerId!, message: notificationBody, result }));
+
+        notificationPromises.push(sendPromise);
         detail.status = status;
       } else {
         detail.status = status;
@@ -140,23 +176,34 @@ export async function runExpiryCheck() {
   }
 
   console.log(`[ExpiryCheck] Waiting for ${notificationPromises.length} notifications to be sent...`);
-  const results = await Promise.allSettled(notificationPromises);
+  const settledResults = await Promise.allSettled(notificationPromises);
   let successCount = 0;
   
-  results.forEach((result, index) => {
-    // Find the original detail object that corresponds to this promise
-    const detail = processedDetails.find(d => d.status.includes('_notification_sent'));
+  settledResults.forEach((result, index) => {
+     // Find the corresponding detail object
+    const detail = processedDetails.find(d => 
+        result.status === 'fulfilled' && d.customerId === result.value.customerId && d.status.includes('_notification_sent')
+    );
     
     if (result.status === 'fulfilled') {
       successCount++;
+      const { customerId, message } = result.value;
       if (detail) detail.notificationStatus = 'fulfilled';
+      // Log the successful notification
+      logNotification(customerId, message);
     } else {
-      if (detail) detail.notificationStatus = 'rejected';
-      console.error(`[ExpiryCheck] FAILED to send notification to ${detail?.customerId}:`, result.reason);
+      // It's harder to correlate failures without more context from the promise, 
+      // but we can log the general failure.
+      console.error(`[ExpiryCheck] FAILED to send a notification:`, result.reason);
+      // Try to find a detail to mark as failed
+      const failedDetail = processedDetails.find(d => d.status.includes('_notification_sent') && d.notificationStatus !== 'fulfilled');
+      if (failedDetail) {
+          failedDetail.notificationStatus = 'rejected';
+      }
     }
   });
 
-  const failedCount = results.length - successCount;
+  const failedCount = settledResults.length - successCount;
   console.log(`[ExpiryCheck] Complete. Sent: ${successCount}, Failed: ${failedCount}`);
 
   return {

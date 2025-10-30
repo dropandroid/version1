@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ShieldCheck, Loader2 } from 'lucide-react';
+import { ShieldCheck, Loader2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -16,13 +16,48 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from 'date-fns';
 
 const ADMIN_PASSWORD = "Birendra555@";
+
+interface NotificationLog {
+    logId: string;
+    customerId: string;
+    sentAt: string;
+    message: string;
+}
+
 
 const AdminDashboard = () => {
     const [isChecking, setIsChecking] = useState(false);
     const [checkResult, setCheckResult] = useState<any>(null);
     const { toast } = useToast();
+    const [logs, setLogs] = useState<NotificationLog[]>([]);
+    const [isLoadingLogs, setIsLoadingLogs] = useState(true);
+
+    const fetchLogs = async () => {
+        setIsLoadingLogs(true);
+        try {
+            const response = await fetch('/api/get-notification-logs');
+            if (!response.ok) throw new Error('Failed to fetch logs');
+            const data = await response.json();
+            setLogs(data);
+        } catch (error) {
+            console.error('Failed to fetch logs', error);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not load notification logs.',
+            });
+        } finally {
+            setIsLoadingLogs(false);
+        }
+    };
+    
+    useEffect(() => {
+        fetchLogs();
+    }, []);
 
     const handleManualCheck = async () => {
         setIsChecking(true);
@@ -30,6 +65,7 @@ const AdminDashboard = () => {
             const response = await fetch('/api/manual-notification-trigger');
             const data = await response.json();
             setCheckResult(data);
+            fetchLogs(); // Refresh logs after manual trigger
         } catch (error) {
             console.error('Failed to run manual check', error);
             toast({
@@ -43,7 +79,7 @@ const AdminDashboard = () => {
     };
 
     return (
-        <div>
+        <div className="space-y-6">
             <Card>
                 <CardHeader>
                     <CardTitle className="text-base">Admin Actions</CardTitle>
@@ -56,6 +92,47 @@ const AdminDashboard = () => {
                      <p className="text-xs text-muted-foreground mt-2 text-center">
                         This will trigger the expiry alert check for all customers.
                     </p>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <div className="flex justify-between items-center">
+                        <CardTitle className="text-base">Recent Notification Logs (Last 7 Days)</CardTitle>
+                        <Button variant="ghost" size="icon" onClick={fetchLogs} disabled={isLoadingLogs}>
+                           <RefreshCw className={`h-4 w-4 ${isLoadingLogs ? 'animate-spin' : ''}`} />
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {isLoadingLogs ? (
+                         <div className="flex justify-center items-center h-24">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                    ) : logs.length === 0 ? (
+                        <p className="text-center text-sm text-muted-foreground">No notifications sent in the last 7 days.</p>
+                    ) : (
+                        <div className="max-h-96 overflow-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Customer ID</TableHead>
+                                        <TableHead>Message</TableHead>
+                                        <TableHead className="text-right">Sent At</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {logs.map(log => (
+                                        <TableRow key={log.logId}>
+                                            <TableCell className="font-mono text-xs">{log.customerId}</TableCell>
+                                            <TableCell className="text-xs">{log.message}</TableCell>
+                                            <TableCell className="text-right text-xs">{format(new Date(log.sentAt), "MMM d, h:mm a")}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -108,7 +185,7 @@ export default function AdminPage() {
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
-            <div className="w-full max-w-md">
+            <div className="w-full max-w-2xl">
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-2xl text-center">Admin Panel</CardTitle>
@@ -116,7 +193,7 @@ export default function AdminPage() {
                     </CardHeader>
                     <CardContent>
                         {!isAuthenticated ? (
-                            <div className="space-y-4">
+                            <div className="space-y-4 max-w-md mx-auto">
                                 <div>
                                     <Label htmlFor="password">Password</Label>
                                     <Input
