@@ -1,14 +1,12 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getFirestore, collection, onSnapshot, doc } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wifi, Router, Info, Loader2 } from 'lucide-react';
+import { Wifi, Router, Info, Loader2, ExternalLink } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from '@/hooks/use-auth';
-import { app } from '@/lib/firebase'; // Import the central app instance
+import { app } from '@/lib/firebase';
 import Link from 'next/link';
 
 const db = app ? getFirestore(app) : null;
@@ -100,10 +98,15 @@ const MonitoringMode = () => {
 // --- Configuration Mode Component ---
 
 const ConfigurationMode = () => {
+    const handleOpenDeviceSetup = () => {
+        // As per the ESP code, it hosts a web server at this local IP.
+        window.open('http://192.168.4.1', '_blank');
+    };
+
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-base">Hotspot Mode</CardTitle>
+                <CardTitle className="text-base">Hotspot Mode Setup</CardTitle>
                 <CardDescription>Provision a new device by connecting to its local hotspot.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -111,15 +114,14 @@ const ConfigurationMode = () => {
                     <h3 className="font-semibold text-primary">Instructions</h3>
                     <ol className="text-sm text-primary/90 list-decimal list-inside space-y-2">
                         <li>Power on your AquaTrack device.</li>
-                        <li>On your phone, go to Wi-Fi settings and connect to the network named <strong>AquaTrack-Setup</strong>.</li>
-                        <li>Once connected, tap the button below to begin setup.</li>
+                        <li>On your phone, go to Wi-Fi settings and connect to the network named <strong>droppurity</strong>.</li>
+                        <li>Once connected, tap the button below to open the device's configuration page.</li>
                     </ol>
                 </div>
-                 <Link href="/setup" passHref>
-                    <Button asChild className="w-full" size="lg">
-                        <a>Start Device Setup</a>
-                    </Button>
-                </Link>
+                <Button onClick={handleOpenDeviceSetup} className="w-full" size="lg">
+                    <ExternalLink className="mr-2" />
+                    Open Device Configuration Page
+                </Button>
             </CardContent>
         </Card>
     )
@@ -132,8 +134,8 @@ export const LiveDeviceTab: React.FC = () => {
         <h2 className="text-xl font-bold text-foreground">Live Device Management</h2>
         <Tabs defaultValue="wifi-mode" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="wifi-mode"><Wifi className="mr-2"/> WiFi Mode</TabsTrigger>
-                <TabsTrigger value="hotspot-mode"><Router className="mr-2"/> Device Setup</TabsTrigger>
+                <TabsTrigger value="wifi-mode"><Wifi className="mr-2"/> Online Devices</TabsTrigger>
+                <TabsTrigger value="hotspot-mode"><Router className="mr-2"/> New Device Setup</TabsTrigger>
             </TabsList>
             <TabsContent value="wifi-mode">
                 <MonitoringMode />
