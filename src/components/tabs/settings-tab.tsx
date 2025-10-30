@@ -3,7 +3,7 @@
 
 import type { FC } from 'react';
 import { useState } from 'react';
-import { Save, X, Bell, ChevronsRight } from 'lucide-react';
+import { Save, X, Bell, ChevronsRight, ShieldCheck } from 'lucide-react';
 import { useRoData } from '@/hooks/use-ro-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 type SettingsTabProps = ReturnType<typeof useRoData>;
 
@@ -20,6 +29,8 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
   const [tempLimit, setTempLimit] = useState(roDevice.dailyLimit);
   const { toast } = useToast();
   const { customerData, requestNotificationPermission } = useAuth();
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkResult, setCheckResult] = useState<any>(null);
 
 
   const handleSaveLimit = () => {
@@ -56,6 +67,25 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
        toast({ title: "Notifications Dismissed", description: "You can enable notifications later from settings." });
     }
   };
+
+  const handleManualCheck = async () => {
+    setIsChecking(true);
+    try {
+      const response = await fetch('/api/manual-notification-trigger');
+      const data = await response.json();
+      setCheckResult(data);
+    } catch (error) {
+      console.error('Failed to run manual check', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to trigger manual check.',
+      });
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
 
   const settingsOptions = [
     { key: 'usageAlerts', label: 'Usage Alerts' },
@@ -146,6 +176,17 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
         </Card>
 
       <Card>
+        <CardHeader><CardTitle className="text-base">Admin Actions</CardTitle></CardHeader>
+        <CardContent>
+            <Button variant="outline" className="w-full" onClick={handleManualCheck} disabled={isChecking}>
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                {isChecking ? 'Checking...' : 'Run Manual Expiry Check'}
+            </Button>
+        </CardContent>
+      </Card>
+
+
+      <Card>
         <CardHeader><CardTitle className="text-base">Support</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <Button variant="outline" className="w-full" onClick={() => toast({title: "Contacting Support", description: "Email us at support@droppurity.com"})}>Contact Support</Button>
@@ -153,6 +194,36 @@ export const SettingsTab: FC<SettingsTabProps> = ({ roDevice, setRoDevice, setti
           <Button variant="outline" className="w-full" onClick={() => toast({title: "Issue Reported", description: "We will contact you shortly."})}>Report Issue</Button>
         </CardContent>
       </Card>
+
+       {checkResult && (
+        <AlertDialog open={!!checkResult} onOpenChange={() => setCheckResult(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Manual Check Complete</AlertDialogTitle>
+              <AlertDialogDescription>
+                <div className="mt-4 text-left space-y-2 text-sm">
+                  <p><strong>Message:</strong> {checkResult.message}</p>
+                  <p><strong>Total Customers Processed:</strong> {checkResult.processedCount}</p>
+                  <p><strong>Notifications Sent:</strong> {checkResult.sent}</p>
+                  <p><strong>Notifications Failed:</strong> {checkResult.failed}</p>
+                   {checkResult.details && checkResult.details.length > 0 && (
+                      <div className="pt-2">
+                        <h4 className="font-semibold mb-1">Details:</h4>
+                        <pre className="bg-muted p-2 rounded-md text-xs max-h-48 overflow-auto">
+                          {JSON.stringify(checkResult.details, null, 2)}
+                        </pre>
+                      </div>
+                  )}
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={() => setCheckResult(null)}>Close</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
     </div>
   );
 };
