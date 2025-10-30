@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, Dispatch, SetStateAction } from 'react';
-import { Home, BarChart3, Settings, User } from 'lucide-react';
+import { Home, BarChart3, Settings, User, Router } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BottomNavProps {
@@ -12,6 +12,7 @@ interface BottomNavProps {
 const navItems = [
   { id: 'home', icon: Home, label: 'Home' },
   { id: 'analytics', icon: BarChart3, label: 'Analytics' },
+  { id: 'live', icon: Router, label: 'Live' },
   { id: 'settings', icon: Settings, label: 'Settings' },
   { id: 'profile', icon: User, label: 'Profile' }
 ];

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -70,7 +69,7 @@ const ConfigurationMode = () => {
 
 // --- Monitoring Mode Components ---
 
-const DeviceCard = ({ deviceId, localIp }) => {
+const DeviceCard = ({ deviceId, localIp }: { deviceId: string, localIp: string }) => {
   const [deviceData, setDeviceData] = useState<{totalHours?: number} | null>(null);
   const [litersUsed, setLitersUsed] = useState(0);
 
@@ -178,17 +177,11 @@ const MonitoringMode = () => {
 
 // --- Main App Component ---
 
-export default function DeviceDashboardPage() {
+export function LiveDeviceTab() {
   const [mode, setMode] = useState('monitor'); // 'monitor' or 'config'
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        <header className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-primary">Device Dashboard</h1>
-          <p className="text-lg text-muted-foreground">Provision new devices and monitor live data.</p>
-        </header>
-
+    <div className="p-4 space-y-4">
         <div className="flex justify-center mb-6 border-b">
             <button 
                 onClick={() => setMode('monitor')}
@@ -204,10 +197,9 @@ export default function DeviceDashboardPage() {
             </button>
         </div>
 
-        <main className="max-w-4xl mx-auto">
+        <main>
           {mode === 'config' ? <ConfigurationMode /> : <MonitoringMode />}
         </main>
-      </div>
     </div>
   );
 }

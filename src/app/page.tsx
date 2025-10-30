@@ -10,6 +10,7 @@ import { HomeTab } from '@/components/tabs/home-tab';
 import { AnalyticsTab } from '@/components/tabs/analytics-tab';
 import { SettingsTab } from '@/components/tabs/settings-tab';
 import { ProfileTab } from '@/components/tabs/profile-tab';
+import { LiveDeviceTab } from '@/components/tabs/live-device-tab';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { WifiOff, User, Home as HomeIcon, Phone, MapPin } from 'lucide-react';
@@ -103,7 +104,7 @@ export default function Home() {
     if (roData.isInitialLoading && isConnected) {
       return <AppSkeleton />;
     }
-    if (!isConnected && activeTab !== 'profile' && activeTab !== 'settings') {
+    if (!isConnected && activeTab !== 'profile' && activeTab !== 'settings' && activeTab !== 'live') {
         return <DisconnectedState />;
     }
     switch (activeTab) {
@@ -111,6 +112,8 @@ export default function Home() {
         return <HomeTab {...roData} />;
       case 'analytics':
         return <AnalyticsTab {...roData} />;
+      case 'live':
+        return <LiveDeviceTab />;
       case 'settings':
         return <SettingsTab {...roData} />;
       case 'profile':
