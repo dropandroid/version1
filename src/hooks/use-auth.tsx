@@ -311,13 +311,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    useEffect(() => {
     if (loading) return;
 
-    const isAuthPage = pathname === '/login' || pathname === '/verify-customer';
+    const isPublicPage = pathname === '/login' || pathname === '/verify-customer' || pathname === '/admin';
 
-    if (!user && !isAuthPage) {
+    if (!user && !isPublicPage) {
       router.push('/login');
     } else if (user && pathname === '/login' && customerStatus === 'verified') {
         router.push('/');
-    } else if (user && customerStatus === 'unverified' && pathname !== '/verify-customer' && pathname !== '/login') {
+    } else if (user && customerStatus === 'unverified' && !isPublicPage) {
       router.push('/verify-customer');
     } else if (user && customerStatus === 'verified' && pathname === '/verify-customer') {
       router.push('/');
