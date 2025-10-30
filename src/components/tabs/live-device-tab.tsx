@@ -9,8 +9,9 @@ import { Wifi, Router, Info, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/hooks/use-auth';
 import { app } from '@/lib/firebase'; // Import the central app instance
+import Link from 'next/link';
 
-const db = getFirestore(app);
+const db = app ? getFirestore(app) : null;
 
 // --- Monitoring Mode Components ---
 
@@ -99,16 +100,6 @@ const MonitoringMode = () => {
 // --- Configuration Mode Component ---
 
 const ConfigurationMode = () => {
-    
-    const handleSetupClick = () => {
-         if (window.AndroidBridge && window.AndroidBridge.startDeviceSetup) {
-            console.log("Calling AndroidBridge.startDeviceSetup()");
-            window.AndroidBridge.startDeviceSetup();
-        } else {
-            alert("This feature is only available on the Android app. Please open the app to set up a new device.");
-        }
-    }
-
     return (
         <Card>
             <CardHeader>
@@ -120,14 +111,15 @@ const ConfigurationMode = () => {
                     <h3 className="font-semibold text-primary">Instructions</h3>
                     <ol className="text-sm text-primary/90 list-decimal list-inside space-y-2">
                         <li>Power on your AquaTrack device.</li>
-                        <li>Click the "Start Device Setup" button below.</li>
-                        <li>Your phone will open a new screen to connect to the device's Wi-Fi.</li>
-                        <li>Follow the on-screen steps to complete setup.</li>
+                        <li>On your phone, go to Wi-Fi settings and connect to the network named <strong>AquaTrack-Setup</strong>.</li>
+                        <li>Once connected, tap the button below to begin setup.</li>
                     </ol>
                 </div>
-                <Button onClick={handleSetupClick} className="w-full" size="lg">
-                    Start Device Setup
-                </Button>
+                 <Link href="/setup" passHref>
+                    <Button asChild className="w-full" size="lg">
+                        <a>Start Device Setup</a>
+                    </Button>
+                </Link>
             </CardContent>
         </Card>
     )

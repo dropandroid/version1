@@ -34,12 +34,9 @@ const DisconnectedState: FC = () => {
     const { customerData } = useAuth();
     
     const handleSetupDevice = () => {
-      if (window.AndroidBridge && typeof window.AndroidBridge.startDeviceSetup === 'function') {
-        window.AndroidBridge.startDeviceSetup();
-      } else {
-        // Fallback for web or if bridge is not available
-        alert("Please open the app on your Android device to set up a new device.");
-      }
+      // This function is now primarily for web fallback.
+      // The main setup flow is handled by linking to the /setup page.
+      alert("Please open the app on your Android device to set up a new device, or navigate to the 'Live' tab for setup instructions.");
     };
 
     return (
@@ -51,7 +48,7 @@ const DisconnectedState: FC = () => {
                     </div>
                     <CardTitle className="text-center">No Device Connected</CardTitle>
                     <CardDescription className="text-center">
-                        Your account is verified. Please connect your AquaTrack device to begin monitoring.
+                        Your account is verified. Go to the 'Live' tab to set up your AquaTrack device.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -66,9 +63,6 @@ const DisconnectedState: FC = () => {
                             </div>
                         </div>
                     )}
-                    <Button size="lg" className="w-full" onClick={handleSetupDevice}>
-                        Setup New Device
-                    </Button>
                 </CardContent>
             </Card>
         </div>

@@ -59,7 +59,6 @@ declare global {
         onEmailNotFound: (email: string) => void;
         triggerPhoneCall: (phoneNumber: string) => void;
         openExternalUrl: (url: string) => void;
-        startDeviceSetup: () => void;
     };
   }
 }
