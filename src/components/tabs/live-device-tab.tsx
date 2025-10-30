@@ -8,6 +8,7 @@ import { Wifi, Router, Info, Loader2, ExternalLink, Smartphone } from 'lucide-re
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { app } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 
 const db = app ? getFirestore(app) : null;
 
@@ -30,7 +31,7 @@ const DeviceCard = ({ deviceId, localIp, totalHours }) => {
           <div className="text-right">
             <p className="text-muted-foreground text-sm">Total Liters Used</p>
             <p className="text-3xl font-bold text-primary">{litersUsed.toFixed(1)}L</p>
-            <p className="text-xs text-muted-foreground">{totalHours.toFixed(2)} hours</p>
+            <p className="text-xs text-muted-foreground">{totalHours ? totalHours.toFixed(2) : '0.00'} hours</p>
           </div>
         </CardContent>
       </Card>
@@ -41,6 +42,38 @@ const DeviceCard = ({ deviceId, localIp, totalHours }) => {
 const MonitoringMode = () => {
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { customerData } = useAuth();
+  const { toast } = useToast();
+
+  const saveIpToDb = async (deviceId, ipAddress) => {
+    if (!customerData?.generatedCustomerId) {
+        console.warn("[Live Tab] Cannot save IP, customer ID is not available.");
+        return;
+    }
+     try {
+        const response = await fetch('/api/save-ip', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                customerId: customerData.generatedCustomerId,
+                ipAddress: ipAddress,
+                deviceId: deviceId,
+            })
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `API call failed with status: ${response.status}`);
+        }
+        console.log(`[Live Tab] Successfully called /api/save-ip for device ${deviceId}`);
+    } catch (error) {
+        console.error("[Live Tab] Error calling /api/save-ip:", error);
+        toast({
+            variant: "destructive",
+            title: "Could Not Save IP",
+            description: "Failed to update the device's IP address in the database.",
+        });
+    }
+  };
 
   useEffect(() => {
     if (!db) {
@@ -50,11 +83,19 @@ const MonitoringMode = () => {
     const devicesColRef = collection(db, 'devices');
     
     const unsubscribe = onSnapshot(devicesColRef, (snapshot) => {
-      const deviceList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const deviceList = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return { id: doc.id, ...data };
+      });
       setDevices(deviceList);
+      
+      // When devices are found, iterate and save their IPs
+      deviceList.forEach(device => {
+          if (device.localIp && device.deviceId) {
+              saveIpToDb(device.deviceId, device.localIp);
+          }
+      });
+
       setLoading(false);
     }, (error) => {
       console.error("Error fetching devices:", error);
@@ -62,7 +103,7 @@ const MonitoringMode = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [customerData]); // Rerun effect if customerData changes
 
   if (loading) {
     return (
