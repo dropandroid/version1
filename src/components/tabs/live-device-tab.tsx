@@ -4,10 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { getFirestore, collection, onSnapshot } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wifi, Router, Info, Loader2, ExternalLink } from 'lucide-react';
+import { Wifi, Router, Info, Loader2, ExternalLink, Smartphone } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { app } from '@/lib/firebase';
-import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 const db = app ? getFirestore(app) : null;
 
@@ -77,7 +77,7 @@ const MonitoringMode = () => {
          <Card className="text-center p-6">
             <Info className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
             <h3 className="font-semibold">No Online Devices Found</h3>
-            <p className="text-sm text-muted-foreground mt-1">Use the "Device Setup" tab to configure a new device. Once connected, it will appear here.</p>
+            <p className="text-sm text-muted-foreground mt-1">Use the "New Device Setup" tab to configure a new device. Once connected, it will appear here.</p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -98,29 +98,45 @@ const MonitoringMode = () => {
 // --- Configuration Mode Component ---
 
 const ConfigurationMode = () => {
-    const handleOpenDeviceSetup = () => {
-        // As per the ESP code, it hosts a web server at this local IP.
-        window.open('http://192.168.4.1', '_blank');
+    const { toast } = useToast();
+
+    const handleStartDeviceSetup = () => {
+      if (window.AndroidBridge && typeof window.AndroidBridge.startDeviceSetup === 'function') {
+        console.log("Calling AndroidBridge.startDeviceSetup()");
+        toast({
+            title: "Opening Device Setup",
+            description: "Please follow the instructions on the next screen.",
+        });
+        window.AndroidBridge.startDeviceSetup();
+      } else {
+        console.warn("AndroidBridge.startDeviceSetup is not available.");
+        toast({
+            variant: "destructive",
+            title: "Setup Not Available",
+            description: "This feature is only available in the DropPurity Android app. Please open the app to set up a new device.",
+        });
+      }
     };
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle className="text-base">Hotspot Mode Setup</CardTitle>
-                <CardDescription>Provision a new device by connecting to its local hotspot.</CardDescription>
+                <CardDescription>Provision a new device by connecting it to your Wi-Fi network.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="bg-primary/10 p-4 rounded-lg space-y-3 mb-6">
                     <h3 className="font-semibold text-primary">Instructions</h3>
                     <ol className="text-sm text-primary/90 list-decimal list-inside space-y-2">
-                        <li>Power on your AquaTrack device.</li>
-                        <li>On your phone, go to Wi-Fi settings and connect to the network named <strong>droppurity</strong>.</li>
-                        <li>Once connected, tap the button below to open the device's configuration page.</li>
+                        <li>Power on your new AquaTrack device.</li>
+                        <li>Tap the button below to begin the setup process.</li>
+                        <li>The app will guide you to connect to the device's hotspot (e.g., 'droppurity').</li>
+                        <li>Follow the on-screen steps to connect the device to your home Wi-Fi.</li>
                     </ol>
                 </div>
-                <Button onClick={handleOpenDeviceSetup} className="w-full" size="lg">
-                    <ExternalLink className="mr-2" />
-                    Open Device Configuration Page
+                <Button onClick={handleStartDeviceSetup} className="w-full" size="lg">
+                    <Smartphone className="mr-2" />
+                    Start Device Setup
                 </Button>
             </CardContent>
         </Card>
