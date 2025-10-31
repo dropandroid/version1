@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getFirestore, collection, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot, DocumentData } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wifi, Router, Info, Loader2, ExternalLink, Smartphone } from 'lucide-react';
+import { Wifi, Router, Info, Loader2, ExternalLink, Smartphone, Network } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { app } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -14,7 +14,7 @@ const db = app ? getFirestore(app) : null;
 
 // --- Monitoring Mode Components ---
 
-const DeviceCard = ({ deviceId, localIp, totalHours }) => {
+const DeviceCard = ({ deviceId, localIp, totalHours }: { deviceId: string, localIp: string, totalHours: number }) => {
   const litersUsed = (totalHours || 0) * 15;
 
   return (
@@ -40,12 +40,12 @@ const DeviceCard = ({ deviceId, localIp, totalHours }) => {
 };
 
 const MonitoringMode = () => {
-  const [devices, setDevices] = useState([]);
+  const [devices, setDevices] = useState<DocumentData[]>([]);
   const [loading, setLoading] = useState(true);
   const { customerData } = useAuth();
   const { toast } = useToast();
 
-  const saveIpToDb = async (deviceId, ipAddress) => {
+  const saveIpToDb = async (deviceId: string, ipAddress: string) => {
     if (!customerData?.generatedCustomerId) {
         console.warn("[Live Tab] Cannot save IP, customer ID is not available.");
         return;
@@ -89,9 +89,8 @@ const MonitoringMode = () => {
       });
       setDevices(deviceList);
       
-      // When devices are found, iterate and save their IPs
       deviceList.forEach(device => {
-          if (device.localIp && device.deviceId) {
+          if (device.localIp && device.deviceId && customerData?.generatedCustomerId) {
               saveIpToDb(device.deviceId, device.localIp);
           }
       });
@@ -103,7 +102,7 @@ const MonitoringMode = () => {
     });
 
     return () => unsubscribe();
-  }, [customerData]); // Rerun effect if customerData changes
+  }, [customerData]); 
 
   if (loading) {
     return (
@@ -144,24 +143,9 @@ const MonitoringMode = () => {
 // --- Configuration Mode Component ---
 
 const ConfigurationMode = () => {
-    const { toast } = useToast();
-
-    const handleStartDeviceSetup = () => {
-      if (window.AndroidBridge && typeof window.AndroidBridge.startDeviceSetup === 'function') {
-        console.log("Calling AndroidBridge.startDeviceSetup()");
-        toast({
-            title: "Opening Device Setup",
-            description: "Please follow the instructions on the next screen.",
-        });
-        window.AndroidBridge.startDeviceSetup();
-      } else {
-        console.warn("AndroidBridge.startDeviceSetup is not available.");
-        toast({
-            variant: "destructive",
-            title: "Setup Not Available",
-            description: "This feature is only available in the DropPurity Android app. Please open the app to set up a new device.",
-        });
-      }
+    
+    const handleOpenDevicePage = () => {
+        window.open('http://192.168.4.1', '_blank');
     };
 
     return (
@@ -174,15 +158,15 @@ const ConfigurationMode = () => {
                 <div className="bg-primary/10 p-4 rounded-lg space-y-3 mb-6">
                     <h3 className="font-semibold text-primary">Instructions</h3>
                     <ol className="text-sm text-primary/90 list-decimal list-inside space-y-2">
-                        <li>Power on your new AquaTrack device.</li>
-                        <li>Tap the button below to begin the setup process.</li>
-                        <li>The app will guide you to connect to the device's hotspot (e.g., 'droppurity').</li>
-                        <li>Follow the on-screen steps to connect the device to your home Wi-Fi.</li>
+                        <li>Power on your new AquaTrack device. It will create a Wi-Fi hotspot.</li>
+                        <li>Go to your phone's Wi-Fi settings and connect to the network named <span className="font-bold">`droppurity`</span>.</li>
+                        <li>Once connected, return to this app and tap the button below.</li>
+                        <li>A new page will open. Follow the steps there to connect the device to your home Wi-Fi.</li>
                     </ol>
                 </div>
-                <Button onClick={handleStartDeviceSetup} className="w-full" size="lg">
-                    <Smartphone className="mr-2" />
-                    Start Device Setup
+                <Button onClick={handleOpenDevicePage} className="w-full" size="lg">
+                    <Network className="mr-2" />
+                    Open Wi-Fi Settings Page (192.168.4.1)
                 </Button>
             </CardContent>
         </Card>
