@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -65,12 +66,14 @@ export default function DeviceDashboard() {
       {/* Device Configuration Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Device Configuration</CardTitle>
+          <CardTitle>Device Setup</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-4 text-muted-foreground">
-            Use this to set up a new device on your home WiFi network.
-          </p>
+          <div className="space-y-3 text-muted-foreground mb-4">
+              <p><strong>Step 1:</strong> Go to your phone's WiFi settings and manually connect to the hotspot named <strong>droppurity</strong>.</p>
+              <p><strong>Step 2:</strong> After you are connected, return to this app.</p>
+              <p><strong>Step 3:</strong> Tap the button below to configure your device.</p>
+          </div>
           <Button
             onClick={() => {
               if (window.AndroidBridge && window.AndroidBridge.startDeviceSetup) {
@@ -81,7 +84,7 @@ export default function DeviceDashboard() {
               }
             }}
           >
-            Configure New Device
+            Open Device Setup Page
           </Button>
         </CardContent>
       </Card>
