@@ -1,10 +1,12 @@
+
+export const dynamic = "force-dynamic";
 "use client";
 
 import React from 'react';
 import { useAuth } from "@/hooks/use-auth";
 import { useDeviceControl } from "@/hooks/useDeviceControl";
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Wifi, WifiOff, Zap, ZapOff, Loader2 } from 'lucide-react';
 
 export const LiveDeviceTab: React.FC = () => {
