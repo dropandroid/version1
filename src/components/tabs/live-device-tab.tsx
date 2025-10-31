@@ -159,7 +159,7 @@ const ConfigurationMode = () => {
                 <div className="bg-primary/10 p-4 rounded-lg space-y-3 mb-6">
                     <h3 className="font-semibold text-primary">Instructions</h3>
                     <ol className="text-sm text-primary/90 list-decimal list-inside space-y-2">
-                        <li>Power on your new AquaTrack device. It will create a Wi-Fi hotspot.</li>
+                        <li>Power on your new Droppurity device. It will create a Wi-Fi hotspot.</li>
                         <li>Go to your phone's Wi-Fi settings and connect to the network named <span className="font-bold">`droppurity`</span>.</li>
                         <li>Once connected, return to this app and tap the button below.</li>
                         <li>A new page will open. Follow the steps there to connect the device to your home Wi-Fi.</li>
