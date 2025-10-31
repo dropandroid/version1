@@ -47,6 +47,7 @@ export interface CustomerData {
   google_email?: string;
   fcmToken?: string;
   customerPhotoUrl?: string;
+  lastKnownIp?: string;
   
   aadhaarNo?: string;
   altMobileNo?: string;
