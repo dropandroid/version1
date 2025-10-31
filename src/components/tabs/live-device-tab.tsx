@@ -12,7 +12,8 @@ export const LiveDeviceTab: React.FC = () => {
   const { deviceData, connectionStatus, sendRelayCommand } = useDeviceControl();
 
   const handleStartSetup = () => {
-    // Navigate the WebView to the device's setup page.
+    // This navigates the current WebView to the device's setup page,
+    // ensuring it opens inside the app.
     window.location.href = 'http://192.168.4.1/scanwifi';
   };
 
