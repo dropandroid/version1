@@ -148,7 +148,7 @@ const ConfigurationMode = () => {
     const handleStartSetup = () => {
         // This will navigate the current app window to the device's config page.
         // The user must be connected to the device's hotspot first.
-        window.location.href = 'http://192.168.4.1/';
+        window.location.href = 'http://192.168.4.1/scanwifi';
     };
 
     return (
