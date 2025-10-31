@@ -145,29 +145,34 @@ const MonitoringMode = () => {
 
 const ConfigurationMode = () => {
     
-    const handleOpenDevicePage = () => {
-        window.open('http://192.168.4.1', '_blank');
+    const handleStartSetup = () => {
+        if (window.AndroidBridge && window.AndroidBridge.startDeviceSetup) {
+            console.log("[Live Tab] Calling AndroidBridge.startDeviceSetup()");
+            window.AndroidBridge.startDeviceSetup();
+        } else {
+            alert("Device setup can only be initiated from the native Android app.");
+        }
     };
 
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-base">Hotspot Mode Setup</CardTitle>
-                <CardDescription>Provision a new device by connecting it to your Wi-Fi network.</CardDescription>
+                <CardTitle className="text-base">New Device Setup</CardTitle>
+                <CardDescription>Provision a new device by connecting it to your home Wi-Fi network.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="bg-primary/10 p-4 rounded-lg space-y-3 mb-6">
                     <h3 className="font-semibold text-primary">Instructions</h3>
                     <ol className="text-sm text-primary/90 list-decimal list-inside space-y-2">
-                        <li>Power on your new Droppurity device. It will create a Wi-Fi hotspot.</li>
-                        <li>Go to your phone's Wi-Fi settings and connect to the network named <span className="font-bold">`droppurity`</span>.</li>
-                        <li>Once connected, return to this app and tap the button below.</li>
-                        <li>A new page will open. Follow the steps there to connect the device to your home Wi-Fi.</li>
+                        <li>Power on your new Droppurity device.</li>
+                        <li>Tap the button below to begin the setup process.</li>
+                        <li>The app will guide you to connect to the device's hotspot (e.g., 'droppurity').</li>
+                        <li>Follow the on-screen steps to connect the device to your home Wi-Fi.</li>
                     </ol>
                 </div>
-                <Button onClick={handleOpenDevicePage} className="w-full" size="lg">
-                    <Network className="mr-2" />
-                    Open Wi-Fi Settings Page (192.168.4.1)
+                <Button onClick={handleStartSetup} className="w-full" size="lg">
+                    <Smartphone className="mr-2" />
+                    Start Device Setup
                 </Button>
             </CardContent>
         </Card>
