@@ -1,138 +1,151 @@
-'use client';
+"use client";
 
 import React from 'react';
+import { useAuth } from "@/hooks/use-auth";
+import { useDeviceControl } from "@/hooks/useDeviceControl";
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Wifi, Router, Info, Loader2, ExternalLink, Smartphone, Network } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDeviceControl } from '@/hooks/useDeviceControl';
-
-
-// --- Monitoring Mode Components ---
-
-const DeviceCard = ({ deviceId, localIp, totalHours }: { deviceId: string, localIp: string, totalHours: number }) => {
-  const litersUsed = (totalHours || 0) * 15;
-
-  return (
-    <a href={`http://${localIp}`} target="_blank" rel="noopener noreferrer" className="block hover:shadow-lg transition-shadow rounded-lg">
-      <Card className="flex flex-col justify-between h-full">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-base truncate">{deviceId}</CardTitle>
-            <ExternalLink className="w-4 h-4 text-muted-foreground" />
-          </div>
-          <CardDescription>IP: {localIp}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-right">
-            <p className="text-muted-foreground text-sm">Total Liters Used</p>
-            <p className="text-3xl font-bold text-primary">{litersUsed.toFixed(1)}L</p>
-            <p className="text-xs text-muted-foreground">{totalHours ? totalHours.toFixed(2) : '0.00'} hours</p>
-          </div>
-        </CardContent>
-      </Card>
-    </a>
-  );
-};
-
-const MonitoringMode = () => {
-  const { deviceData, connectionStatus } = useDeviceControl();
-
-  if (connectionStatus === 'connecting') {
-    return (
-        <div className="flex justify-center items-center h-40">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-    );
-  }
-  
-  if (connectionStatus === 'no-ip' || !deviceData) {
-    return (
-        <Card className="text-center p-6">
-            <Info className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-            <h3 className="font-semibold">No Online Devices Found</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-                Your device doesn't seem to be connected to the local network. 
-                Use the "New Device Setup" tab if this is a new device.
-            </p>
-        </Card>
-    )
-  }
-
-  return (
-    <div>
-      {connectionStatus !== 'connected' ? (
-         <Card className="text-center p-6">
-            <Wifi className="w-12 h-12 mx-auto text-muted-foreground mb-3 animate-pulse" />
-            <h3 className="font-semibold">Connecting to Device...</h3>
-            <p className="text-sm text-muted-foreground mt-1">Attempting to establish a live connection with your device at {deviceData.customerId}.</p>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <DeviceCard 
-                key={deviceData.customerId} 
-                deviceId={deviceData.customerId!} 
-                localIp={deviceData.customerId!}
-                totalHours={deviceData.total_hours || 0}
-            />
-        </div>
-      )}
-    </div>
-  );
-};
-
-// --- Configuration Mode Component ---
-
-const ConfigurationMode = () => {
-    
-    const handleStartSetup = () => {
-        // This will navigate the current app window to the device's config page.
-        // The user must be connected to the device's hotspot first.
-        window.location.href = 'http://192.168.4.1/scanwifi';
-    };
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-base">New Device Setup</CardTitle>
-                <CardDescription>Follow these steps to provision a new Droppurity device.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="bg-primary/10 p-4 rounded-lg space-y-3 mb-6">
-                    <h3 className="font-semibold text-primary">Instructions</h3>
-                    <ol className="text-sm text-primary/90 list-decimal list-inside space-y-2">
-                        <li>Power on your new Droppurity device. It will begin broadcasting its own Wi-Fi network.</li>
-                        <li>Go to your phone's Wi-Fi settings and connect to the network named <strong>droppurity</strong>.</li>
-                        <li>Once connected, return to this app and tap the button below.</li>
-                        <li>The device's Wi-Fi settings page will open. Follow the on-screen steps to connect it to your home Wi-Fi.</li>
-                    </ol>
-                </div>
-                <Button onClick={handleStartSetup} className="w-full" size="lg">
-                    <Network className="mr-2" />
-                    Open Device Wi-Fi Settings
-                </Button>
-            </CardContent>
-        </Card>
-    )
-}
-
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Wifi, WifiOff, Zap, ZapOff, Loader2 } from 'lucide-react';
 
 export const LiveDeviceTab: React.FC = () => {
+  const { customerData } = useAuth();
+  const { deviceData, connectionStatus, sendRelayCommand } = useDeviceControl();
+
+  const handleStartSetup = () => {
+    // Navigate the WebView to the device's setup page.
+    window.location.href = 'http://192.168.4.1/scanwifi';
+  };
+
+  const getStatusMessage = () => {
+    if (!customerData?.lastKnownIp) {
+      return (
+        <span className="flex items-center text-muted-foreground">
+          <WifiOff className="mr-2 h-4 w-4" />
+          Device IP not found. Start setup to connect your device.
+        </span>
+      );
+    }
+    switch (connectionStatus) {
+      case 'connecting':
+        return (
+          <span className="flex items-center text-yellow-500">
+            <Wifi className="mr-2 h-4 w-4 animate-pulse" />
+            Connecting to {customerData.lastKnownIp}...
+          </span>
+        );
+      case 'connected':
+        return (
+          <span className="flex items-center text-green-500">
+            <Wifi className="mr-2 h-4 w-4" />
+            Live connection established!
+          </span>
+        );
+      case 'error':
+      case 'disconnected':
+      default:
+        return (
+          <span className="flex items-center text-red-500">
+            <WifiOff className="mr-2 h-4 w-4" />
+            Disconnected. Ensure you're on the same Wi-Fi as your device.
+          </span>
+        );
+    }
+  };
+
   return (
     <div className="p-4 space-y-4">
-        <h2 className="text-xl font-bold text-foreground">Live Device Management</h2>
-        <Tabs defaultValue="wifi-mode" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="wifi-mode"><Wifi className="mr-2"/> Online Device</TabsTrigger>
-                <TabsTrigger value="hotspot-mode"><Router className="mr-2"/> New Device Setup</TabsTrigger>
-            </TabsList>
-            <TabsContent value="wifi-mode">
-                <MonitoringMode />
-            </TabsContent>
-            <TabsContent value="hotspot-mode">
-                <ConfigurationMode />
-            </TabsContent>
-        </Tabs>
+      <Card>
+        <CardHeader>
+          <CardTitle>New Device Setup</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3 text-muted-foreground mb-4">
+            <p><strong>Step 1:</strong> Power on your new Droppurity device.</p>
+            <p><strong>Step 2:</strong> Go to your phone's Wi-Fi settings and connect to the hotspot named <strong>droppurity</strong>.</p>
+            <p><strong>Step 3:</strong> Once connected, return to this app and tap the button below.</p>
+          </div>
+          <Button onClick={handleStartSetup}>
+            Open Device Setup Page
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Live Device Control</CardTitle>
+          <p className="pt-2 text-sm">{getStatusMessage()}</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {connectionStatus !== 'connected' || !deviceData ? (
+             <div className="flex flex-col items-center justify-center text-muted-foreground p-6">
+                <Loader2 className="h-6 w-6 animate-spin mb-4" />
+                <p>Waiting for live data...</p>
+                <p className="text-xs text-center mt-2">Ensure your device is powered on and connected to your Wi-Fi.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">RO System Control</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {deviceData.relay_is_on ? (
+                    <div className="flex items-center text-green-500 mb-4">
+                      <Zap className="mr-2 h-5 w-5" />
+                      <span className="font-bold text-xl">System is ON</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center text-red-500 mb-4">
+                      <ZapOff className="mr-2 h-5 w-5" />
+                      <span className="font-bold text-xl">System is OFF</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => sendRelayCommand('on')} 
+                      disabled={deviceData.relay_is_on || !deviceData.trigger_is_active}
+                    >
+                      Turn ON
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      onClick={() => sendRelayCommand('off')}
+                      disabled={!deviceData.relay_is_on}
+                    >
+                      Turn OFF
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Float switch is {deviceData.trigger_is_active ? "ACTIVE" : "INACTIVE"}
+                  </p>
+                   {!deviceData.trigger_is_active && <p className="text-xs text-amber-600 mt-1">System cannot be turned on while float switch is inactive.</p>}
+                </CardContent>
+              </Card>
+            
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Live Usage</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <h3 className="text-lg font-semibold">
+                    {deviceData.total_liters?.toFixed(2)} L
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    / {deviceData.max_liters?.toFixed(2)} L
+                  </p>
+
+                  <h3 className="text-lg font-semibold mt-4">
+                    {deviceData.total_hours?.toFixed(2)} hrs
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    / {deviceData.max_hours?.toFixed(2)} hrs
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

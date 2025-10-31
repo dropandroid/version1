@@ -1,34 +1,27 @@
-
 "use client";
 
+import React from 'react';
 import { useAuth } from "@/hooks/use-auth";
-import { useDeviceControl } from "@/hooks/useDeviceControl"; // Import the hook
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useDeviceControl } from "@/hooks/useDeviceControl";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Wifi, WifiOff, Zap, ZapOff, Loader2 } from 'lucide-react';
 
-// This is the main dashboard component
-export default function DeviceDashboard() {
-  const { customerData, loading: authLoading } = useAuth();
-  
-  // Use our new hook to get live data and controls
+export const LiveDeviceTab: React.FC = () => {
+  const { customerData } = useAuth();
   const { deviceData, connectionStatus, sendRelayCommand } = useDeviceControl();
 
-  if (authLoading) {
-    return <div className="p-4 flex justify-center items-center h-screen"><Loader2 className="animate-spin h-8 w-8" /></div>;
-  }
+  const handleStartSetup = () => {
+    // Navigate the WebView to the device's setup page.
+    window.location.href = 'http://192.168.4.1/scanwifi';
+  };
 
-  if (!customerData) {
-    return <div className="p-4">Please log in to see your dashboard.</div>;
-  }
-  
-  // Helper function to get a status message
   const getStatusMessage = () => {
-    if (!customerData.lastKnownIp) {
+    if (!customerData?.lastKnownIp) {
       return (
         <span className="flex items-center text-muted-foreground">
           <WifiOff className="mr-2 h-4 w-4" />
-          Device IP not found. Ensure device is online or run setup.
+          Device IP not found. Start setup to connect your device.
         </span>
       );
     }
@@ -53,43 +46,30 @@ export default function DeviceDashboard() {
         return (
           <span className="flex items-center text-red-500">
             <WifiOff className="mr-2 h-4 w-4" />
-            Disconnected. Ensure you are on the same WiFi as your device.
+            Disconnected. Ensure you're on the same Wi-Fi as your device.
           </span>
         );
     }
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-8 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold">Device Dashboard</h1>
-      
-      {/* Device Configuration Section */}
+    <div className="p-4 space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Device Setup</CardTitle>
+          <CardTitle>New Device Setup</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3 text-muted-foreground mb-4">
-              <p><strong>Step 1:</strong> Go to your phone's WiFi settings and manually connect to the hotspot named <strong>droppurity</strong>.</p>
-              <p><strong>Step 2:</strong> After you are connected, return to this app.</p>
-              <p><strong>Step 3:</strong> Tap the button below to configure your device.</p>
+            <p><strong>Step 1:</strong> Power on your new Droppurity device.</p>
+            <p><strong>Step 2:</strong> Go to your phone's Wi-Fi settings and connect to the hotspot named <strong>droppurity</strong>.</p>
+            <p><strong>Step 3:</strong> Once connected, return to this app and tap the button below.</p>
           </div>
-          <Button
-            onClick={() => {
-              if (window.AndroidBridge && window.AndroidBridge.startDeviceSetup) {
-                window.AndroidBridge.startDeviceSetup();
-              } else {
-                // Fallback for testing in a normal browser
-                alert("Device setup can only be started from the native Android app.");
-              }
-            }}
-          >
+          <Button onClick={handleStartSetup}>
             Open Device Setup Page
           </Button>
         </CardContent>
       </Card>
 
-      {/* Live Monitoring Section */}
       <Card>
         <CardHeader>
           <CardTitle>Live Device Control</CardTitle>
@@ -97,10 +77,13 @@ export default function DeviceDashboard() {
         </CardHeader>
         <CardContent className="space-y-4">
           {connectionStatus !== 'connected' || !deviceData ? (
-            <p className="text-muted-foreground">Waiting for live data...</p>
+             <div className="flex flex-col items-center justify-center text-muted-foreground p-6">
+                <Loader2 className="h-6 w-6 animate-spin mb-4" />
+                <p>Waiting for live data...</p>
+                <p className="text-xs text-center mt-2">Ensure your device is powered on and connected to your Wi-Fi.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Relay Control Card */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">RO System Control</CardTitle>
@@ -133,13 +116,12 @@ export default function DeviceDashboard() {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Trigger pin is {deviceData.trigger_is_active ? "ACTIVE" : "INACTIVE"}
+                    Float switch is {deviceData.trigger_is_active ? "ACTIVE" : "INACTIVE"}
                   </p>
-                   {!deviceData.trigger_is_active && <p className="text-xs text-amber-600 mt-1">System cannot be turned on while trigger is inactive.</p>}
+                   {!deviceData.trigger_is_active && <p className="text-xs text-amber-600 mt-1">System cannot be turned on while float switch is inactive.</p>}
                 </CardContent>
               </Card>
             
-              {/* Usage Stats Card */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Live Usage</CardTitle>
@@ -166,4 +148,4 @@ export default function DeviceDashboard() {
       </Card>
     </div>
   );
-}
+};
