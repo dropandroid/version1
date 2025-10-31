@@ -5,7 +5,7 @@ import React from 'react';
 import { useAuth } from "@/hooks/use-auth";
 import { useDeviceControl } from "@/hooks/useDeviceControl";
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Wifi, WifiOff, Zap, ZapOff, Loader2 } from 'lucide-react';
 
 export const LiveDeviceTab: React.FC = () => {
@@ -59,6 +59,7 @@ export const LiveDeviceTab: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>New Device Setup</CardTitle>
+          <CardDescription>Follow these steps to connect your new device.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3 text-muted-foreground mb-4">
