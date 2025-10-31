@@ -1,16 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { getFirestore, collection, onSnapshot, DocumentData } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Wifi, Router, Info, Loader2, ExternalLink, Smartphone, Network } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { app } from '@/lib/firebase';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/use-auth';
+import { useDeviceControl } from '@/hooks/useDeviceControl';
 
-const db = app ? getFirestore(app) : null;
 
 // --- Monitoring Mode Components ---
 
@@ -40,72 +36,9 @@ const DeviceCard = ({ deviceId, localIp, totalHours }: { deviceId: string, local
 };
 
 const MonitoringMode = () => {
-  const [devices, setDevices] = useState<DocumentData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { customerData } = useAuth();
-  const { toast } = useToast();
+  const { deviceData, connectionStatus } = useDeviceControl();
 
-  const saveIpToDb = async (deviceId: string, ipAddress: string) => {
-    if (!customerData?.generatedCustomerId) {
-        console.warn("[Live Tab] Cannot save IP, customer ID is not available.");
-        return;
-    }
-     try {
-        const response = await fetch('/api/save-ip', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                customerId: customerData.generatedCustomerId,
-                ipAddress: ipAddress,
-                deviceId: deviceId,
-            })
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `API call failed with status: ${response.status}`);
-        }
-        console.log(`[Live Tab] Successfully called /api/save-ip for device ${deviceId}`);
-    } catch (error) {
-        console.error("[Live Tab] Error calling /api/save-ip:", error);
-        toast({
-            variant: "destructive",
-            title: "Could Not Save IP",
-            description: "Failed to update the device's IP address in the database.",
-        });
-    }
-  };
-
-  useEffect(() => {
-    if (!db) {
-        setLoading(false);
-        return;
-    };
-    const devicesColRef = collection(db, 'devices');
-    
-    const unsubscribe = onSnapshot(devicesColRef, (snapshot) => {
-      const deviceList = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return { id: doc.id, ...data };
-      });
-      setDevices(deviceList);
-      
-      deviceList.forEach(device => {
-          if (device.localIp && device.deviceId && customerData?.generatedCustomerId) {
-              saveIpToDb(device.deviceId, device.localIp);
-          }
-      });
-
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching devices:", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerData]); 
-
-  if (loading) {
+  if (connectionStatus === 'connecting') {
     return (
         <div className="flex justify-center items-center h-40">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -113,28 +46,35 @@ const MonitoringMode = () => {
     );
   }
   
-  if (!db) {
-    return <p className="text-center text-destructive">Firebase is not initialized.</p>
+  if (connectionStatus === 'no-ip' || !deviceData) {
+    return (
+        <Card className="text-center p-6">
+            <Info className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+            <h3 className="font-semibold">No Online Devices Found</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+                Your device doesn't seem to be connected to the local network. 
+                Use the "New Device Setup" tab if this is a new device.
+            </p>
+        </Card>
+    )
   }
 
   return (
     <div>
-      {devices.length === 0 ? (
+      {connectionStatus !== 'connected' ? (
          <Card className="text-center p-6">
-            <Info className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-            <h3 className="font-semibold">No Online Devices Found</h3>
-            <p className="text-sm text-muted-foreground mt-1">Use the "New Device Setup" tab to configure a new device. Once connected, it will appear here.</p>
+            <Wifi className="w-12 h-12 mx-auto text-muted-foreground mb-3 animate-pulse" />
+            <h3 className="font-semibold">Connecting to Device...</h3>
+            <p className="text-sm text-muted-foreground mt-1">Attempting to establish a live connection with your device at {deviceData.customerId}.</p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {devices.map(device => (
             <DeviceCard 
-                key={device.id} 
-                deviceId={device.deviceId} 
-                localIp={device.localIp}
-                totalHours={device.totalHoursRun}
+                key={deviceData.customerId} 
+                deviceId={deviceData.customerId!} 
+                localIp={deviceData.customerId!}
+                totalHours={deviceData.total_hours || 0}
             />
-          ))}
         </div>
       )}
     </div>
@@ -183,7 +123,7 @@ export const LiveDeviceTab: React.FC = () => {
         <h2 className="text-xl font-bold text-foreground">Live Device Management</h2>
         <Tabs defaultValue="wifi-mode" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="wifi-mode"><Wifi className="mr-2"/> Online Devices</TabsTrigger>
+                <TabsTrigger value="wifi-mode"><Wifi className="mr-2"/> Online Device</TabsTrigger>
                 <TabsTrigger value="hotspot-mode"><Router className="mr-2"/> New Device Setup</TabsTrigger>
             </TabsList>
             <TabsContent value="wifi-mode">
