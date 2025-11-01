@@ -9,6 +9,13 @@ import { Wifi, Router, Info, Loader2, Smartphone, AlertTriangle } from 'lucide-r
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { app } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
 
 const db = app ? getFirestore(app) : null;
 
@@ -102,9 +109,11 @@ const ConfigurationMode = () => {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isAndroidApp, setIsAndroidApp] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
+        setIsAndroidApp(typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.startDeviceSetup === 'function');
         // Cleanup timeout on component unmount
         return () => {
             if (timeoutRef.current) {
@@ -121,20 +130,41 @@ const ConfigurationMode = () => {
       timeoutRef.current = setTimeout(() => {
           setIsLoading(false);
           setError("Device not found. Please make sure you are connected to the DropPurity device's Wi-Fi hotspot and try again.");
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
       }, 10000);
 
-      if (window.AndroidBridge && typeof window.AndroidBridge.startDeviceSetup === 'function') {
+      if (isAndroidApp) {
         console.log("Calling AndroidBridge.startDeviceSetup()");
         toast({
             title: "Opening Device Setup",
             description: "Please follow the instructions in the app.",
         });
-        window.AndroidBridge.startDeviceSetup();
+        window.AndroidBridge!.startDeviceSetup!();
       } else {
-        console.warn("AndroidBridge not available. Using web fallback.");
-        window.location.href = 'http://192.168.4.1/scanwifi';
+        // This case should ideally not be reached if the button is disabled, but it's good practice.
+        console.warn("Attempted to start device setup on a non-Android platform.");
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        setIsLoading(false);
       }
     };
+    
+    const SetupButton = () => (
+         <Button onClick={handleStartDeviceSetup} className="w-full" size="lg" disabled={isLoading || !isAndroidApp}>
+            {isLoading ? (
+                <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Connecting...
+                </>
+            ) : (
+                <>
+                    <Smartphone className="mr-2" />
+                    Start Device Setup
+                </>
+            )}
+        </Button>
+    )
 
     return (
         <Card>
@@ -158,19 +188,24 @@ const ConfigurationMode = () => {
                         <li>Follow the on-screen steps to connect the device to your home Wi-Fi.</li>
                     </ol>
                 </div>
-                <Button onClick={handleStartDeviceSetup} className="w-full" size="lg" disabled={isLoading}>
-                    {isLoading ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Connecting...
-                        </>
-                    ) : (
-                        <>
-                            <Smartphone className="mr-2" />
-                            Start Device Setup
-                        </>
-                    )}
-                </Button>
+                
+                <TooltipProvider>
+                  {isAndroidApp ? (
+                    <SetupButton />
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="w-full">
+                          <SetupButton />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>This feature is only available in the Android app.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </TooltipProvider>
+
             </CardContent>
         </Card>
     )
