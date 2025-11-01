@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getFirestore, collection, onSnapshot } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wifi, Router, Info, Loader2, ExternalLink, Smartphone } from 'lucide-react';
+import { Wifi, Router, Info, Loader2, Smartphone, AlertTriangle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { app } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -100,9 +100,28 @@ const MonitoringMode = () => {
 const ConfigurationMode = () => {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        // Cleanup timeout on component unmount
+        return () => {
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+        };
+    }, []);
 
     const handleStartDeviceSetup = () => {
       setIsLoading(true);
+      setError(null);
+
+      // Set a 10-second timeout
+      timeoutRef.current = setTimeout(() => {
+          setIsLoading(false);
+          setError("Device not found. Please make sure you are connected to the DropPurity device's Wi-Fi hotspot and try again.");
+      }, 10000);
+
       if (window.AndroidBridge && typeof window.AndroidBridge.startDeviceSetup === 'function') {
         console.log("Calling AndroidBridge.startDeviceSetup()");
         toast({
@@ -110,17 +129,9 @@ const ConfigurationMode = () => {
             description: "Please follow the instructions in the app.",
         });
         window.AndroidBridge.startDeviceSetup();
-        // The native code will handle the rest. We can reset the loading state after a delay
-        // in case the user cancels or comes back.
-        setTimeout(() => setIsLoading(false), 5000); 
       } else {
-        console.warn("AndroidBridge.startDeviceSetup is not available.");
-        toast({
-            variant: "destructive",
-            title: "Setup Not Available",
-            description: "This feature is only available in the DropPurity Android app. Please open the app to set up a new device.",
-        });
-        setIsLoading(false);
+        console.warn("AndroidBridge not available. Using web fallback.");
+        window.location.href = 'http://192.168.4.1/scanwifi';
       }
     };
 
@@ -131,6 +142,12 @@ const ConfigurationMode = () => {
                 <CardDescription>Provision a new device by connecting it to your Wi-Fi network.</CardDescription>
             </CardHeader>
             <CardContent>
+                {error && (
+                    <div className="mb-4 flex items-start p-3 bg-destructive/10 text-destructive rounded-lg border border-destructive/20">
+                        <AlertTriangle className="h-5 w-5 mr-3 shrink-0 mt-0.5"/>
+                        <p className="text-sm font-medium">{error}</p>
+                    </div>
+                )}
                 <div className="bg-primary/10 p-4 rounded-lg space-y-3 mb-6">
                     <h3 className="font-semibold text-primary">Instructions</h3>
                     <ol className="text-sm text-primary/90 list-decimal list-inside space-y-2">
@@ -144,7 +161,7 @@ const ConfigurationMode = () => {
                     {isLoading ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Starting...
+                            Connecting...
                         </>
                     ) : (
                         <>
