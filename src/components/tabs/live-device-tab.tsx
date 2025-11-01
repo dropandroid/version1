@@ -99,15 +99,20 @@ const MonitoringMode = () => {
 
 const ConfigurationMode = () => {
     const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleStartDeviceSetup = () => {
+      setIsLoading(true);
       if (window.AndroidBridge && typeof window.AndroidBridge.startDeviceSetup === 'function') {
         console.log("Calling AndroidBridge.startDeviceSetup()");
         toast({
             title: "Opening Device Setup",
-            description: "Please follow the instructions on the next screen.",
+            description: "Please follow the instructions in the app.",
         });
         window.AndroidBridge.startDeviceSetup();
+        // The native code will handle the rest. We can reset the loading state after a delay
+        // in case the user cancels or comes back.
+        setTimeout(() => setIsLoading(false), 5000); 
       } else {
         console.warn("AndroidBridge.startDeviceSetup is not available.");
         toast({
@@ -115,6 +120,7 @@ const ConfigurationMode = () => {
             title: "Setup Not Available",
             description: "This feature is only available in the DropPurity Android app. Please open the app to set up a new device.",
         });
+        setIsLoading(false);
       }
     };
 
@@ -134,9 +140,18 @@ const ConfigurationMode = () => {
                         <li>Follow the on-screen steps to connect the device to your home Wi-Fi.</li>
                     </ol>
                 </div>
-                <Button onClick={handleStartDeviceSetup} className="w-full" size="lg">
-                    <Smartphone className="mr-2" />
-                    Start Device Setup
+                <Button onClick={handleStartDeviceSetup} className="w-full" size="lg" disabled={isLoading}>
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Starting...
+                        </>
+                    ) : (
+                        <>
+                            <Smartphone className="mr-2" />
+                            Start Device Setup
+                        </>
+                    )}
                 </Button>
             </CardContent>
         </Card>
